@@ -163,10 +163,42 @@
           <el-input v-model="createForm.device_type" placeholder="请输入设备类型" />
         </el-form-item>
         <el-form-item label="生产线ID" prop="production_line_id">
-          <el-input v-model="createForm.production_line_id" placeholder="请输入生产线ID" />
+          <el-select
+            v-model="createForm.production_line_id"
+            filterable
+            remote
+            reserve-keyword
+            placeholder="请选择生产线"
+            :remote-method="loadProductionLines"
+            :loading="plLoading"
+            clearable
+          >
+            <el-option
+              v-for="pl in productionLineOptions"
+              :key="pl.production_line_id"
+              :label="`${pl.production_line_id} - ${pl.production_line_name}`"
+              :value="pl.production_line_id"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="设备管理员" prop="device_manager">
-          <el-input v-model="createForm.device_manager" placeholder="请输入设备管理员ID" />
+          <el-select
+            v-model="createForm.device_manager"
+            filterable
+            remote
+            reserve-keyword
+            placeholder="请选择管理员"
+            :remote-method="loadUsers"
+            :loading="userLoading"
+            clearable
+          >
+            <el-option
+              v-for="user in userOptions"
+              :key="user.user_id"
+              :label="`${user.user_id} - ${user.real_name} (${user.user_name})`"
+              :value="user.user_id"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="IP地址">
           <el-input v-model="createForm.ip_addr" placeholder="请输入IP地址" />
@@ -187,10 +219,16 @@
 import { ref, computed, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { deviceService } from '../../services/device'
+import { productionLineService } from '../../services/productionLine'
+import { userService } from '../../services/user'
 
 const loading = ref(false)
 const devices = ref([])
 const removedDevices = ref([])
+const productionLineOptions = ref([])
+const userOptions = ref([])
+const plLoading = ref(false)
+const userLoading = ref(false)
 const filterStatus = ref('')
 const searchKeyword = ref('')
 const showDetailDialog = ref(false)
@@ -299,6 +337,45 @@ const handleSearch = () => {
 const handleReset = () => {
   filterStatus.value = ''
   searchKeyword.value = ''
+}
+
+const loadProductionLines = async (keyword = '') => {
+  plLoading.value = true
+  try {
+    const res = await productionLineService.getList({ limit: 100 })
+    let lines = res.data.production_lines || []
+    if (keyword) {
+      lines = lines.filter(pl => 
+        pl.production_line_id.toString().includes(keyword) ||
+        pl.production_line_name.toLowerCase().includes(keyword.toLowerCase())
+      )
+    }
+    productionLineOptions.value = lines
+  } catch (error) {
+    console.error('Load production lines failed:', error)
+  } finally {
+    plLoading.value = false
+  }
+}
+
+const loadUsers = async (keyword = '') => {
+  userLoading.value = true
+  try {
+    const res = await userService.getList({ limit: 100 })
+    let users = res.data.users || []
+    if (keyword) {
+      users = users.filter(user => 
+        user.user_id.toString().includes(keyword) ||
+        user.user_name.toLowerCase().includes(keyword.toLowerCase()) ||
+        user.real_name.toLowerCase().includes(keyword.toLowerCase())
+      )
+    }
+    userOptions.value = users
+  } catch (error) {
+    console.error('Load users failed:', error)
+  } finally {
+    userLoading.value = false
+  }
 }
 
 const handleViewDetail = async (device) => {

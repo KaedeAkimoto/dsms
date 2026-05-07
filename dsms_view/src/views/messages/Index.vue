@@ -70,8 +70,8 @@
             </div>
             <div class="bubble-text">{{ msg.content }}</div>
             <div class="bubble-footer" v-if="!isSystemMessage(msg)">
-              <el-tag v-if="msg.status === 'unread'" type="warning" size="small">未读</el-tag>
-              <el-tag v-else type="success" size="small">已读</el-tag>
+              <el-tag v-if="isMessageToSelf(msg) || msg.status === 'read'" type="success" size="small">已读</el-tag>
+              <el-tag v-else type="warning" size="small">未读</el-tag>
             </div>
           </div>
         </div>
@@ -83,7 +83,7 @@
           class="message-input"
           @keyup.enter="handleSendMessage"
         />
-        <el-button type="primary" @click="handleSendMessage" :disabled="!newMessageContent.trim()">发送</el-button>
+        <el-button type="primary" @click="handleSendMessage" :disabled="!newMessageContent.trim() || sendMessageLoading" :loading="sendMessageLoading">发送</el-button>
       </div>
       <template #footer>
         <el-button @click="showChatDialog = false">关闭</el-button>
@@ -147,6 +147,9 @@ import { Warning, User, ChatDotRound } from '@element-plus/icons-vue'
 import { messageService } from '../../services/message'
 import { userService, departmentService, titleService, roleService } from '../../services/user'
 import { formatDateTime } from '../../utils/date'
+import { useAuthStore } from '../../stores/auth'
+
+const authStore = useAuthStore()
 
 const loading = ref(false)
 const cachedMessages = reactive({
@@ -154,11 +157,24 @@ const cachedMessages = reactive({
   received: [],
   sent: []
 })
+
+const isMessageToSelf = (msg) => {
+  const currentUserId = authStore.currentUser?.user_id
+  if (!currentUserId) return false
+  
+  if (msg.type === 'received') {
+    return msg.send_user === currentUserId && msg.receive_user === currentUserId
+  } else if (msg.type === 'sent') {
+    return msg.send_user === currentUserId && msg.receive_user === currentUserId
+  }
+  return false
+}
 const showChatDialog = ref(false)
 const currentConversation = ref({})
 const chatMessagesRef = ref(null)
 const showUserDetailDialog = ref(false)
 const newMessageContent = ref('')
+const sendMessageLoading = ref(false)
 
 const viewUserForm = reactive({
   user_id: '',
@@ -453,25 +469,43 @@ const handleChatClosed = () => {
 }
 
 const handleSendMessage = async () => {
-  if (!newMessageContent.value.trim()) return
+  if (!newMessageContent.value.trim() || sendMessageLoading.value) return
   
   const content = newMessageContent.value.trim()
   const receiveUserId = currentConversation.value.user_id
   
+  sendMessageLoading.value = true
+  
+  const sendMessageWithRetry = async (retries = 3) => {
+    try {
+      const res = await messageService.sendMessage({
+        receive_user: receiveUserId,
+        content
+      })
+      
+      return { success: true, data: res.data }
+    } catch (error) {
+      if (retries > 0) {
+        console.warn(`Send message failed, retrying (${3 - retries + 1}/3)...`, error)
+        await new Promise(resolve => setTimeout(resolve, 1000 * (4 - retries)))
+        return sendMessageWithRetry(retries - 1)
+      }
+      return { success: false, error }
+    }
+  }
+  
   try {
-    const res = await messageService.sendMessage({
-      receive_user: receiveUserId,
-      content
-    })
+    const result = await sendMessageWithRetry()
     
     const newMsg = {
-      msg_id: (res.data.message && res.data.message.msg_id) || Date.now().toString(),
-      send_user: (res.data.message && res.data.message.send_user) || '',
+      msg_id: (result.data?.message?.msg_id) || Date.now().toString(),
+      send_user: (result.data?.message?.send_user) || authStore.currentUser?.user_id || '',
       receive_user: receiveUserId,
       content: content,
       type: 'sent',
-      status: 'unread',
-      created_at: formatDateTime(new Date().toISOString())
+      status: result.success ? 'unread' : 'pending',
+      created_at: formatDateTime(new Date().toISOString()),
+      pending: !result.success
     }
     
     cachedMessages.sent.push(newMsg)
@@ -486,7 +520,13 @@ const handleSendMessage = async () => {
       }
     }
     
-    ElMessage.success('消息发送成功')
+    if (result.success) {
+      ElMessage.success('消息发送成功')
+    } else {
+      ElMessage.warning('消息发送失败，已缓存，将在网络恢复后重试')
+      cachePendingMessage(newMsg)
+    }
+    
     newMessageContent.value = ''
     
     nextTick(() => {
@@ -497,6 +537,58 @@ const handleSendMessage = async () => {
   } catch (error) {
     console.error('Send message failed:', error)
     ElMessage.error('消息发送失败')
+  } finally {
+    sendMessageLoading.value = false
+  }
+}
+
+const cachePendingMessage = (msg) => {
+  try {
+    const pendingMessages = JSON.parse(localStorage.getItem('pendingMessages') || '[]')
+    pendingMessages.push(msg)
+    localStorage.setItem('pendingMessages', JSON.stringify(pendingMessages))
+  } catch (e) {
+    console.error('Cache pending message failed:', e)
+  }
+}
+
+const retryPendingMessages = async () => {
+  try {
+    const pendingMessages = JSON.parse(localStorage.getItem('pendingMessages') || '[]')
+    if (pendingMessages.length === 0) return
+    
+    for (const msg of pendingMessages) {
+      try {
+        const res = await messageService.sendMessage({
+          receive_user: msg.receive_user,
+          content: msg.content
+        })
+        
+        if (res.data.message) {
+          msg.msg_id = res.data.message.msg_id
+          msg.status = 'unread'
+          msg.pending = false
+        }
+        
+        const index = cachedMessages.sent.findIndex(m => m.msg_id === msg.msg_id)
+        if (index !== -1) {
+          cachedMessages.sent[index] = msg
+        }
+        
+        const pendingIndex = pendingMessages.indexOf(msg)
+        if (pendingIndex !== -1) {
+          pendingMessages.splice(pendingIndex, 1)
+        }
+      } catch (error) {
+        console.error('Retry pending message failed:', error)
+        break
+      }
+    }
+    
+    localStorage.setItem('pendingMessages', JSON.stringify(pendingMessages))
+    messageService.setSentMessages([...cachedMessages.sent])
+  } catch (e) {
+    console.error('Retry pending messages failed:', e)
   }
 }
 
@@ -666,6 +758,10 @@ onMounted(async () => {
     await loadAllUsers()
     loadAllMessages()
   }
+  
+  setTimeout(() => {
+    retryPendingMessages()
+  }, 1000)
 })
 </script>
 

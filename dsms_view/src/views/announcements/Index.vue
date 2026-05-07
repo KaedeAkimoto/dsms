@@ -57,7 +57,7 @@
     <el-dialog v-model="showCreateDialog" title="发布公告" width="500px">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px">
         <el-form-item label="接收类型" prop="receiver_type">
-          <el-select v-model="createForm.receiver_type">
+          <el-select v-model="createForm.receiver_type" @change="handleReceiverTypeChange">
             <el-option label="全部" value="all" />
             <el-option label="按部门" value="department" />
             <el-option label="按角色" value="role" />
@@ -65,7 +65,14 @@
           </el-select>
         </el-form-item>
         <el-form-item label="接收目标" v-if="createForm.receiver_type !== 'all'">
-          <el-input-number v-model="createForm.receive_target" :min="1" />
+          <el-select v-model="createForm.receive_target" placeholder="请选择目标">
+            <el-option 
+              v-for="option in currentTargetOptions" 
+              :key="option.value" 
+              :label="option.label" 
+              :value="option.value" 
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="内容" prop="content">
           <el-input v-model="createForm.content" type="textarea" :rows="4" placeholder="请输入公告内容" />
@@ -123,7 +130,7 @@
 
 <script setup>
 defineOptions({ name: 'Announcements' })
-import { ref, reactive, onMounted, onActivated } from 'vue'
+import { ref, reactive, computed, onMounted, onActivated } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { messageService } from '../../services/message'
 import { userService, departmentService, titleService, roleService } from '../../services/user'
@@ -197,6 +204,27 @@ const createForm = reactive({
   expired: ''
 })
 
+const currentTargetOptions = computed(() => {
+  const type = createForm.receiver_type
+  if (type === 'department') {
+    return Object.entries(departmentMap.value).map(([id, name]) => ({
+      value: Number(id),
+      label: `${id} - ${name}`
+    }))
+  } else if (type === 'role') {
+    return Object.entries(roleMap.value).map(([id, name]) => ({
+      value: Number(id),
+      label: `${id} - ${name}`
+    }))
+  } else if (type === 'title') {
+    return Object.entries(titleMap.value).map(([id, name]) => ({
+      value: Number(id),
+      label: `${id} - ${name}`
+    }))
+  }
+  return []
+})
+
 const detail = reactive({
   announcement_id: '',
   receiver_type: '',
@@ -209,6 +237,10 @@ const detail = reactive({
 
 const createRules = {
   content: [{ required: true, message: '请输入公告内容', trigger: 'blur' }]
+}
+
+const handleReceiverTypeChange = () => {
+  createForm.receive_target = null
 }
 
 const getReceiverTypeText = (type) => {

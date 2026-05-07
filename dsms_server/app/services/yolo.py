@@ -144,6 +144,8 @@ class YOLODetector:
                 image = np.array(image)
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
+            if self.model is None:
+                return self._dummy_detect(image_bytes)
             results = self.model.predict(image, device="cpu", verbose=False)
 
             detections = []

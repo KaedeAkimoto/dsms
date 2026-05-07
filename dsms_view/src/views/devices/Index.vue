@@ -84,7 +84,7 @@
             <el-option
               v-for="pl in productionLineOptions"
               :key="pl.production_line_id"
-              :label="pl.production_line_name"
+              :label="`${pl.production_line_id} - ${pl.production_line_name}`"
               :value="pl.production_line_id"
             />
           </el-select>
@@ -103,7 +103,7 @@
             <el-option
               v-for="user in userOptions"
               :key="user.user_id"
-              :label="`${user.real_name} (${user.user_name})`"
+              :label="`${user.user_id} - ${user.real_name} (${user.user_name})`"
               :value="user.user_id"
             />
           </el-select>
@@ -143,7 +143,7 @@
             <el-option
               v-for="pl in productionLineOptions"
               :key="pl.production_line_id"
-              :label="pl.production_line_name"
+              :label="`${pl.production_line_id} - ${pl.production_line_name}`"
               :value="pl.production_line_id"
             />
           </el-select>
@@ -162,7 +162,7 @@
             <el-option
               v-for="user in userOptions"
               :key="user.user_id"
-              :label="`${user.real_name} (${user.user_name})`"
+              :label="`${user.user_id} - ${user.real_name} (${user.user_name})`"
               :value="user.user_id"
             />
           </el-select>
