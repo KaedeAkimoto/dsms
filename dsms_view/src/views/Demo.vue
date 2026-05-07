@@ -103,12 +103,12 @@
           <h3>缺陷类型分布</h3>
           <div class="chart-container">
             <div v-if="Object.keys(defectTypeStats).length > 0">
-              <div v-for="(count, type) in defectTypeStats" :key="type" class="bar-item">
+              <div v-for="(count, type) in sortedDefectTypeStats" :key="type" class="bar-item">
                 <span class="bar-label">{{ type }}</span>
                 <div class="bar-wrapper">
                   <div class="bar-fill" :style="{ width: getBarWidth(count) + '%' }"></div>
                 </div>
-                <span class="bar-count">{{ count }}</span>
+                <span class="bar-count">{{ getBarPercentage(count) }}%</span>
               </div>
             </div>
             <div v-else class="no-chart-data">
@@ -118,17 +118,11 @@
         </div>
 
         <div class="chart-card">
-          <h3>实时趋势</h3>
-          <div class="trend-chart">
-            <div class="trend-bars">
-              <div v-for="(value, index) in trendData" :key="index" class="trend-bar-wrapper">
-                <div class="trend-bar" :style="{ height: (value / maxTrendValue * 100) + '%' }"></div>
-                <span class="trend-label">{{ index + 1 }}</span>
-              </div>
-            </div>
-            <div class="trend-legend">
-              <span>最近 {{ trendData.length }} 帧缺陷数</span>
-            </div>
+          <h3>置信度曲线</h3>
+          <div ref="confidenceChartRef" class="chart-container"></div>
+          <div class="percentile-info">
+            <span class="percentile-label">80%缺陷置信度大于:</span>
+            <span class="percentile-value">{{ percentile80 }}%</span>
           </div>
         </div>
       </div>
@@ -137,11 +131,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import * as echarts from 'echarts'
 
 const videoRef = ref(null)
 const logRef = ref(null)
 const videoInputRef = ref(null)
+const confidenceChartRef = ref(null)
+
+let confidenceChartInstance = null
 
 const isConnected = ref(false)
 const isCameraOn = ref(false)
@@ -168,8 +166,8 @@ const stats = reactive({
 })
 
 const defectTypeStats = reactive({}) // 缺陷类型统计 { typeName: count }
-const trendData = ref([]) // 实时趋势数据
-const maxTrendValue = ref(1) // 趋势图最大值
+const confidenceData = ref(new Array(101).fill(0)) // 置信度0-100%的缺陷计数
+const percentile80 = ref(0) // 80%分位数置信度
 
 const lastResult = ref(null)
 const logs = ref([])
@@ -182,6 +180,20 @@ const getBarWidth = (count) => {
   const maxCount = Math.max(...Object.values(defectTypeStats), 1)
   return (count / maxCount) * 100
 }
+
+const getBarPercentage = (count) => {
+  const total = Object.values(defectTypeStats).reduce((sum, val) => sum + val, 0)
+  return total > 0 ? ((count / total) * 100).toFixed(1) : 0
+}
+
+const sortedDefectTypeStats = computed(() => {
+  return Object.entries(defectTypeStats)
+    .sort((a, b) => b[1] - a[1])
+    .reduce((acc, [type, count]) => {
+      acc[type] = count
+      return acc
+    }, {})
+})
 
 const addLog = (message, type = 'info') => {
   const now = new Date()
@@ -288,12 +300,15 @@ const handleMessage = (message) => {
         currentFrameId.value = message.frame_id
       }
       
-      // 更新趋势数据（最近20帧）
-      trendData.value.push(message.detect_count || 0)
-      if (trendData.value.length > 20) {
-        trendData.value.shift()
+      // 更新置信度分布数据（每1%一个数据点）
+      if (message.detections) {
+        message.detections.forEach(det => {
+          const confidence = det.confidence || 0
+          const percentIndex = Math.min(Math.floor(confidence * 100), 100)
+          confidenceData.value[percentIndex]++
+        })
+        updateConfidenceChart()
       }
-      maxTrendValue.value = Math.max(...trendData.value, 1)
       
       // 缺陷率 = 有缺陷的帧数 / 总帧数 × 100%
       stats.defectRate = stats.frameCount > 0 ? ((stats.defectFrameCount / stats.frameCount) * 100).toFixed(1) : 0
@@ -524,9 +539,9 @@ const resetStats = () => {
     delete defectTypeStats[key]
   })
   
-  // 重置趋势数据
-  trendData.value = []
-  maxTrendValue.value = 1
+  // 重置置信度分布数据
+  confidenceData.value = new Array(101).fill(0)
+  updateConfidenceChart()
   
   lastResult.value = null
   addLog('统计数据已重置', 'info')
@@ -563,15 +578,135 @@ const formatTime = (timestamp) => {
   return date.toLocaleString('zh-CN')
 }
 
+const initConfidenceChart = () => {
+  if (!confidenceChartRef.value) return
+  
+  confidenceChartInstance = echarts.init(confidenceChartRef.value)
+  
+  const option = {
+    grid: {
+      left: '5%',
+      right: '5%',
+      top: '10%',
+      bottom: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      name: '置信度(%)',
+      nameLocation: 'center',
+      nameGap: 30,
+      nameTextStyle: {
+        color: '#e5e7eb',
+        fontSize: 12
+      },
+      data: Array.from({ length: 101 }, (_, i) => i),
+      axisLabel: {
+        color: '#e5e7eb',
+        fontSize: 11,
+        interval: 9,
+        formatter: (value) => value + '%'
+      },
+      axisLine: {
+        lineStyle: { color: '#4b5563' }
+      },
+      axisTick: {
+        lineStyle: { color: '#4b5563' }
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '缺陷占比(%)',
+      nameLocation: 'center',
+      nameGap: 40,
+      nameTextStyle: {
+        color: '#e5e7eb',
+        fontSize: 12
+      },
+      axisLabel: {
+        color: '#e5e7eb',
+        fontSize: 11,
+        formatter: (value) => value + '%'
+      },
+      axisLine: {
+        lineStyle: { color: '#4b5563' }
+      },
+      axisTick: {
+        lineStyle: { color: '#4b5563' }
+      },
+      splitLine: {
+        lineStyle: { color: '#374151', type: 'dashed' }
+      }
+    },
+    series: [{
+      type: 'line',
+      data: new Array(101).fill(0),
+      smooth: true,
+      symbol: 'none',
+      lineStyle: {
+        color: '#10b981',
+        width: 2
+      },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(16, 185, 129, 0.4)' },
+          { offset: 1, color: 'rgba(16, 185, 129, 0.05)' }
+        ])
+      }
+    }],
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => `置信度: ${params[0].axisValue}%<br/>占比: ${params[0].value}%`
+    }
+  }
+  
+  confidenceChartInstance.setOption(option)
+}
+
+const updateConfidenceChart = () => {
+  if (!confidenceChartInstance) return
+  
+  const total = confidenceData.value.reduce((sum, count) => sum + count, 0)
+  const percentageData = confidenceData.value.map(count => 
+    total > 0 ? Number((count / total * 100).toFixed(2)) : 0
+  )
+  
+  // 计算80%缺陷置信度大于的值（从高到低累计）
+  if (total > 0) {
+    const target = total * 0.8
+    let cumulative = 0
+    for (let i = 100; i >= 0; i--) {
+      cumulative += confidenceData.value[i]
+      if (cumulative >= target) {
+        percentile80.value = i
+        break
+      }
+    }
+  } else {
+    percentile80.value = 0
+  }
+  
+  confidenceChartInstance.setOption({
+    series: [{
+      data: percentageData
+    }]
+  })
+}
+
 onMounted(() => {
   addLog('演示页面已加载', 'info')
   connectWebSocket()
+  initConfidenceChart()
 })
 
 onUnmounted(() => {
   stopDetection()
   stopCamera()
   disconnect()
+  if (confidenceChartInstance) {
+    confidenceChartInstance.dispose()
+    confidenceChartInstance = null
+  }
 })
 </script>
 
@@ -866,21 +1001,19 @@ onUnmounted(() => {
 
 .bar-wrapper {
   flex: 1;
-  height: 20px;
+  height: 12px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
   background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-  border-radius: 10px;
   transition: width 0.3s ease;
 }
 
 .bar-count {
-  min-width: 35px;
+  width: 50px;
   text-align: right;
   font-weight: bold;
   color: #4ade80;
@@ -892,45 +1025,30 @@ onUnmounted(() => {
   color: #666;
 }
 
-.trend-chart {
-  padding: 10px 0;
-}
-
-.trend-bars {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  height: 120px;
-  gap: 4px;
-}
-
-.trend-bar-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-}
-
-.trend-bar {
+.chart-container {
+  height: 200px;
   width: 100%;
-  background: linear-gradient(180deg, #3b82f6, #1d4ed8);
-  border-radius: 4px 4px 0 0;
-  transition: height 0.3s ease;
-  min-height: 4px;
 }
 
-.trend-label {
-  font-size: 10px;
-  color: #666;
-  margin-top: 5px;
+.percentile-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #374151;
 }
 
-.trend-legend {
-  text-align: center;
-  margin-top: 15px;
-  font-size: 12px;
-  color: #666;
+.percentile-label {
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.percentile-value {
+  color: #10b981;
+  font-size: 18px;
+  font-weight: bold;
 }
 
 .log-content .warning .log-message {

@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from typing import Dict, Optional
 from uuid import UUID, uuid4
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+
 from sqlalchemy import select
 
 from app.config.database import db_config
@@ -79,7 +80,7 @@ class ConnectionManager:
             del self.device_sessions[device_id]
         logger.info(f"Device {device_id} disconnected")
 
-    def get_connection(self, device_id: str) -> WebSocket:
+    def get_connection(self, device_id: str) -> Optional[WebSocket]:
         return self.active_connections.get(device_id)
 
     def update_session(self, device_id: str, batch_id: str):
@@ -115,8 +116,8 @@ def verify_device_token(device_id: str, upload_token: str) -> bool:
     with db_config.get_session() as session:
         result = session.execute(
             select(Device).where(
-                Device.device_id == UUID(device_id),
-                Device.device_upload_token == upload_token
+                Device.device_id == UUID(device_id), # pyright: ignore[reportArgumentType]
+                Device.device_upload_token == upload_token # pyright: ignore[reportArgumentType]
             )
         )
         device = result.scalar_one_or_none()
@@ -127,7 +128,7 @@ def get_device_manager_id(device_id: str) -> Optional[UUID]:
     """获取设备负责人ID"""
     with db_config.get_session() as session:
         result = session.execute(
-            select(Device).where(Device.device_id == UUID(device_id))
+            select(Device).where(Device.device_id == UUID(device_id)) # pyright: ignore[reportArgumentType]
         )
         device = result.scalar_one_or_none()
         if device:
@@ -139,7 +140,7 @@ def get_device_info(device_id: str) -> tuple:
     """获取设备信息 (device_name, manager_id)"""
     with db_config.get_session() as session:
         result = session.execute(
-            select(Device).where(Device.device_id == UUID(device_id))
+            select(Device).where(Device.device_id == UUID(device_id)) # pyright: ignore[reportArgumentType]
         )
         device = result.scalar_one_or_none()
         if device:
@@ -159,8 +160,8 @@ def get_or_create_detection_record(device_id: str, batch_id: str) -> tuple[Detec
     with db_config.get_session() as session:
         result = session.execute(
             select(DetectionRecord).where(
-                DetectionRecord.record_batch_id == batch_id,
-                DetectionRecord.device_id == UUID(device_id)
+                DetectionRecord.record_batch_id == batch_id, # pyright: ignore[reportArgumentType]
+                DetectionRecord.device_id == UUID(device_id)     # pyright: ignore[reportArgumentType]
             )
         )
         existing = result.scalar_one_or_none()
@@ -186,8 +187,8 @@ def update_detection_record_stats(batch_id: str, device_id: str, has_defect: boo
     with db_config.get_session() as session:
         result = session.execute(
             select(DetectionRecord).where(
-                DetectionRecord.record_batch_id == batch_id,
-                DetectionRecord.device_id == UUID(device_id)
+                DetectionRecord.record_batch_id == batch_id, # pyright: ignore[reportArgumentType]
+                DetectionRecord.device_id == UUID(device_id)     # pyright: ignore[reportArgumentType]
             )
         )
         record = result.scalar_one_or_none()
@@ -235,7 +236,8 @@ def create_defect_and_review_task(record_batch_id: str, device_id: str, device_n
             review_task_id=uuid4(),
             defect_details_id=defect_detail.defect_details_id,
             assignee_id=assignee_id,
-            assignee_at=datetime.now(timezone.utc)
+            assignee_at=datetime.utcnow(),
+            review_details=[]
         )
         session.add(review_task)
         session.commit()
@@ -273,7 +275,7 @@ async def status_request_loop(device_id: str, websocket: WebSocket):
 
             await websocket.send_json({
                 "type": "status_request",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.utcnow().isoformat(),
                 "message": "请上报设备状态"
             })
             logger.debug(f"Sent status request to device {device_id}")
@@ -382,8 +384,8 @@ async def get_detection_stats(device_id: str):
     with db_config.get_session() as session:
         result = session.execute(
             select(DetectionRecord)
-            .where(DetectionRecord.device_id == UUID(device_id))
-            .order_by(DetectionRecord.latest_upload_at.desc())
+            .where(DetectionRecord.device_id == UUID(device_id)) # pyright: ignore[reportArgumentType]
+            .order_by(DetectionRecord.latest_upload_at.desc()) # pyright: ignore[reportAttributeAccessIssue]
             .limit(10)
         )
         records = result.scalars().all()

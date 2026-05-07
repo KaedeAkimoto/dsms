@@ -34,6 +34,10 @@ from app.models import (
 from sqlmodel import select, delete
 
 
+# 统一的缺陷图片路径
+DEFAULT_DEFECT_IMAGE = "/images/defect/sample_017_original.jpg"
+
+
 def clean_detection_data():
     """清空检测相关数据"""
     print("=" * 60)
@@ -243,7 +247,8 @@ def seed_defect_details(records, defect_types):
                 continue
 
             defect_details_id = uuid4()
-            original_img = f"/images/defect/{defect_details_id}.jpg"
+            # 使用统一的缺陷图片
+            original_img = DEFAULT_DEFECT_IMAGE
 
             details_list = []
             for info in record["detect_info"]:

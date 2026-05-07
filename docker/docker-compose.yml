@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: dsms_password
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - ./postgres/data:/var/lib/postgresql/data
+      - dsms-postgres-data:/var/lib/postgresql/data
     
     ports:
       - "5432:5432"
@@ -27,7 +27,7 @@ services:
     container_name: dsms-redis
     restart: always
     volumes:
-      - ./redis/data:/data
+      - dsms-redis-data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
@@ -55,3 +55,7 @@ services:
 networks:
   dsms-network:
     driver: bridge
+
+volumes:
+  dsms-postgres-data:
+  dsms-redis-data:
