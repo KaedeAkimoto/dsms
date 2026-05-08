@@ -1,3 +1,4 @@
+import base64
 from typing import Optional, List, Tuple
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -21,7 +22,8 @@ class DefectDetailResponse(BaseModel):
     """缺陷详情响应"""
     defect_details_id: UUID
     record_batch_id: str
-    original_img: str
+    image_base64: str
+    image_format: str
     defect_count: Optional[int] = None
     details: Optional[List[dict]] = None
     created_at: Optional[str] = None
@@ -51,7 +53,8 @@ class DetectionRecordResponse(BaseModel):
                 {
                     'defect_details_id': str(d.defect_details_id),
                     'record_batch_id': d.record_batch_id,
-                    'original_img': d.original_img,
+                    'image_base64': base64.b64encode(d.image).decode('utf-8') if d.image else '',
+                    'image_format': d.image_format,
                     'defect_count': d.defect_count,
                     'details': d.details if d.details else [],
                     'created_at': None
@@ -78,7 +81,8 @@ class DetectionRecordCreateRequest(BaseModel):
 class DefectDetailCreateRequest(BaseModel):
     """创建缺陷详情请求"""
     record_batch_id: str = Field(description="检测批次ID")
-    original_img: str = Field(description="原始图片URL")
+    image_base64: str = Field(description="原始图片base64编码")
+    image_format: str = Field(description="图片格式: jpeg, png, webp")
     defect_count: Optional[int] = Field(None, description="缺陷数量")
     details: Optional[List[dict]] = Field(None, description="缺陷详情JSON数组")
 

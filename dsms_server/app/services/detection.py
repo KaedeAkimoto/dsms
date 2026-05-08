@@ -142,16 +142,21 @@ class DetectionService:
     def create_defect_detail(
         self,
         record_batch_id: str,
-        original_img: str,
+        image_base64: str,
+        image_format: str,
         defect_count: Optional[int] = None,
         details: List = None
     ) -> DefectDetail:
         """创建缺陷详情"""
+        import base64
+        image_data = base64.b64decode(image_base64)
+        
         with db_config.get_session() as session:
             defect_detail = DefectDetail(
                 defect_details_id=uuid4(),
                 record_batch_id=record_batch_id,
-                original_img=original_img,
+                image=image_data,
+                image_format=image_format,
                 defect_count=defect_count,
                 details=details if details else []
             )

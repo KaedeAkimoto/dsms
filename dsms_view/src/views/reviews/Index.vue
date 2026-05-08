@@ -116,9 +116,9 @@
           
           <div v-if="reviewDefectDetail.data" style="width: 320px; border-left: 1px solid #DCDFE6; padding-left: 24px;">
             <h4 style="margin-bottom: 16px; color: #303133;">缺陷详情</h4>
-            <div v-if="reviewDefectDetail.data.original_img" style="margin-bottom: 16px;">
+            <div v-if="reviewDefectDetail.data.image_base64" style="margin-bottom: 16px;">
               <p style="margin-bottom: 8px; color: #606266; font-size: 14px;">原始图片：</p>
-              <img :src="reviewDefectDetail.data.original_img" alt="缺陷图片" style="max-width: 100%; max-height: 200px; object-fit: contain; border: 1px solid #DCDFE6; border-radius: 4px;" />
+              <img :src="`data:image/${reviewDefectDetail.data.image_format};base64,${reviewDefectDetail.data.image_base64}`" alt="缺陷图片" style="max-width: 100%; max-height: 200px; object-fit: contain; border: 1px solid #DCDFE6; border-radius: 4px;" />
             </div>
             <div style="margin-bottom: 12px;">
               <p style="color: #606266; font-size: 14px;">缺陷数量：<span style="color: #303133; font-weight: 500;">{{ reviewDefectDetail.data.defect_count || 0 }}</span></p>
@@ -196,8 +196,8 @@
           <h4 class="mb-3">缺陷详情</h4>
           <el-form :model="defectDetail.data" label-width="120px">
             <el-form-item label="原始图片">
-              <div v-if="defectDetail.data.original_img" class="image-preview">
-                <img :src="defectDetail.data.original_img" alt="缺陷图片" class="max-w-xs" />
+              <div v-if="defectDetail.data.image_base64" class="image-preview">
+                <img :src="`data:image/${defectDetail.data.image_format};base64,${defectDetail.data.image_base64}`" alt="缺陷图片" class="max-w-xs" />
               </div>
               <span v-else>-</span>
             </el-form-item>

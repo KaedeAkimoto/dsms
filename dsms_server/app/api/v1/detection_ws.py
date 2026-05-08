@@ -218,14 +218,18 @@ def update_detection_record_stats(batch_id: str, device_id: str, has_defect: boo
 
 
 def create_defect_and_review_task(record_batch_id: str, device_id: str, device_name: str,
-                                   original_img: str, defect_count: int, details: list,
+                                   image_base64: str, image_format: str, defect_count: int, details: list,
                                    assignee_id: UUID) -> DefectDetail:
     """创建缺陷详情和审查任务"""
+    import base64
+    image_data = base64.b64decode(image_base64)
+    
     with db_config.get_session() as session:
         defect_detail = DefectDetail(
             defect_details_id=uuid4(),
             record_batch_id=record_batch_id,
-            original_img=original_img,
+            image=image_data,
+            image_format=image_format,
             defect_count=defect_count,
             details=details
         )
@@ -339,7 +343,8 @@ async def detection_websocket(
                                 record_batch_id=batch_id,
                                 device_id=device_id,
                                 device_name=device_name or "未知设备",
-                                original_img=f"data:image/jpeg;base64,{image_data[:100]}...",
+                                image_base64=image_data,
+                                image_format="jpeg",
                                 defect_count=len(detection_results),
                                 details=defect_details,
                                 assignee_id=manager_device_id

@@ -1,3 +1,4 @@
+import base64
 from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Query
@@ -186,7 +187,8 @@ async def get_defect_detail(
         data={
             'defect_details_id': str(defect_detail.defect_details_id),
             'record_batch_id': defect_detail.record_batch_id,
-            'original_img': defect_detail.original_img,
+            'image_base64': base64.b64encode(defect_detail.image).decode('utf-8') if defect_detail.image else '',
+            'image_format': defect_detail.image_format,
             'defect_count': defect_detail.defect_count,
             'details': defect_detail.details
         },

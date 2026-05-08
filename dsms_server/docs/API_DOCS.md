@@ -287,7 +287,8 @@ interface DetectionRecord {
 interface DefectDetail {
   defect_details_id: string;         // UUID
   record_batch_id: string;
-  original_img: string;
+  image_base64: string;              // 图片base64编码
+  image_format: string;               // 图片格式: jpeg, png, webp
   defect_count: number;
   details: any[];
   created_at: string | null;

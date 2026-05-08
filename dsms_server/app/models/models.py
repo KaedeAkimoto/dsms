@@ -2,7 +2,7 @@ from datetime import date, datetime, timezone
 from typing import Optional, List
 from uuid import UUID, uuid4
 from sqlmodel import SQLModel, Field, Relationship, JSON
-from sqlalchemy import Column
+from sqlalchemy import Column, LargeBinary
 
 
 class ProductionLine(SQLModel, table=True):
@@ -123,7 +123,8 @@ class DefectDetail(SQLModel, table=True):
     
     defect_details_id: UUID = Field(primary_key=True, default_factory=uuid4, description="缺陷详情ID, UUID格式")
     record_batch_id: str = Field(nullable=False, foreign_key="detection_records.record_batch_id", description="关联的检测批次ID")
-    original_img: str = Field(max_length=500, nullable=False, description="原始图片URL")
+    image: bytes = Field(sa_column=Column(LargeBinary), nullable=False, description="原始图片二进制数据")
+    image_format: str = Field(max_length=20, nullable=False, description="图片格式: jpeg, png, webp等")
     defect_count: Optional[int] = Field(default=None, description="缺陷数量")
     details: Optional[List] = Field(sa_column=Column(JSON), description="缺陷详情JSON数组, 格式: [{'defect_type_id': ?, 'xyhw': (?,?,?,?), 'conf':?}, ...]")
     

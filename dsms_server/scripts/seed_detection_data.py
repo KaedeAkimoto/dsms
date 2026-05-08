@@ -34,8 +34,14 @@ from app.models import (
 from sqlmodel import select, delete
 
 
-# 统一的缺陷图片路径
-DEFAULT_DEFECT_IMAGE = "/images/defect/sample_017_original.jpg"
+# 默认缺陷图片（使用简单的占位图片）
+import base64
+
+# 生成一个简单的1x1像素的红色GIF图片作为占位符
+DEFAULT_DEFECT_IMAGE_DATA = base64.b64decode(
+    "R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+)
+DEFAULT_IMAGE_FORMAT = "gif"
 
 
 def clean_detection_data():
@@ -247,8 +253,9 @@ def seed_defect_details(records, defect_types):
                 continue
 
             defect_details_id = uuid4()
-            # 使用统一的缺陷图片
-            original_img = DEFAULT_DEFECT_IMAGE
+            # 使用默认的占位图片数据
+            image_data = DEFAULT_DEFECT_IMAGE_DATA
+            image_format = DEFAULT_IMAGE_FORMAT
 
             details_list = []
             for info in record["detect_info"]:
@@ -267,7 +274,8 @@ def seed_defect_details(records, defect_types):
             defect_detail = DefectDetail(
                 defect_details_id=defect_details_id,
                 record_batch_id=record["record_batch_id"],
-                original_img=original_img,
+                image=image_data,
+                image_format=image_format,
                 defect_count=len(details_list),
                 details=details_list
             )
