@@ -164,7 +164,7 @@ def reset_roles():
             old_role_ids = [r.role_id for r in existing_roles]
 
             # 创建临时角色用于迁移用户
-            temp_role_name = f"_temp_role_{uuid.uuid4().hex[:8]}"
+            temp_role_name = f"_temp_role_{uuid4().hex[:8]}"
             temp_role = Role(
                 role_name=temp_role_name,
                 desc="Temporary role for migration",
