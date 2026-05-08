@@ -9,6 +9,7 @@
     - reset-defect-types: 重置缺陷类型数据（保留原数据，补充缺失）
     - reset-roles: 重置系统角色（先清空再重建，处理外键关系）
     - clean-detection: 清空检测相关数据（生产线、设备、检测记录、缺陷详情、审查任务）
+    - clean-logs: 清空审计日志、用户消息、系统消息、公告（广告）
     - clean-all: 清空所有数据（考虑外键依赖关系）
     - all: 执行所有修复操作
 
@@ -18,6 +19,7 @@
     python repair.py reset-departments # 重置部门数据
     python repair.py reset-roles       # 重置系统角色
     python repair.py clean-detection   # 清空检测数据
+    python repair.py clean-logs        # 清空日志和消息数据
     python repair.py clean-all         # 清空所有数据
     python repair.py all               # 执行所有修复
 
@@ -310,29 +312,72 @@ class RepairManager:
         logger.info("开始清空检测相关数据...")
         logger.info("=" * 50)
 
-        from app.models import ReviewTask, DefectDetail, DetectionRecord, Device, ProductionLine
+        # 使用 SQL 直接操作，避免模型字段不匹配问题
+        # 按外键依赖顺序排列，确保子表先于父表删除
+        tables_to_clear = [
+            ("announcement_readers", "公告已读记录"),
+            ("announcements", "公告"),
+            ("user_messages", "用户消息"),
+            ("system_messages", "系统消息"),
+            ("user_operation_logs", "审计日志"),
+            ("review_tasks", "审查任务"),
+            ("defect_details", "缺陷详情"),
+            ("detection_records", "检测记录"),
+            ("device_status_history", "设备状态历史"),
+            ("devices", "设备"),
+            ("device_approvals", "设备审批"),
+            ("production_lines", "生产线"),
+        ]
 
-        with db_config.get_session() as session:
-            tables_to_clear = [
-                (ReviewTask, "审查任务"),
-                (DefectDetail, "缺陷详情"),
-                (DetectionRecord, "检测记录"),
-                (Device, "设备"),
-                (ProductionLine, "生产线"),
-            ]
-
-            for table, table_name in tables_to_clear:
-                count = session.execute(select(table)).scalars().count()
-                if count > 0:
-                    session.execute(delete(table))
-                    logger.info(f"  已清空 {table_name}: {count} 条记录")
-                else:
-                    logger.info(f"  {table_name} 为空，跳过")
-
-            session.commit()
+        with db_config.engine.connect() as conn:
+            for table_name, display_name in tables_to_clear:
+                try:
+                    result = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+                    count = result.scalar_one()
+                    if count > 0:
+                        conn.execute(text(f"DELETE FROM {table_name}"))
+                        logger.info(f"  已清空 {display_name}: {count} 条记录")
+                    else:
+                        logger.info(f"  {display_name} 为空，跳过")
+                except Exception as e:
+                    logger.warning(f"  跳过 {display_name}: {str(e)}")
+            conn.commit()
 
         logger.info("=" * 50)
         logger.info("检测数据清空完成!")
+        logger.info("=" * 50)
+
+    def clean_logs(self):
+        """单独清空日志和消息数据"""
+        logger.info("=" * 50)
+        logger.info("开始清空日志和消息数据...")
+        logger.info("=" * 50)
+
+        # 按外键依赖顺序排列
+        tables_to_clear = [
+            ("announcement_readers", "公告已读记录"),
+            ("announcements", "公告"),
+            ("user_messages", "用户消息"),
+            ("system_messages", "系统消息"),
+            ("user_operation_logs", "审计日志"),
+        ]
+
+        with db_config.engine.connect() as conn:
+            for table_name, display_name in tables_to_clear:
+                try:
+                    result = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+                    count = result.scalar_one()
+                    if count > 0:
+                        conn.execute(text(f"DELETE FROM {table_name}"))
+                        logger.info(f"  已清空 {display_name}: {count} 条记录")
+                    else:
+                        logger.info(f"  {display_name} 为空，跳过")
+                except Exception as e:
+                    logger.warning(f"  跳过 {display_name}: {str(e)}")
+            conn.commit()
+
+        logger.info("=" * 50)
+        logger.info("日志和消息数据清空完成!")
         logger.info("=" * 50)
 
     def clean_all_data(self):
@@ -394,6 +439,7 @@ def main():
         "reset-defect-types": manager.reset_defect_types,
         "reset-roles": manager.reset_roles,
         "clean-detection": manager.clean_detection_data,
+        "clean-logs": manager.clean_logs,
         "clean-all": manager.clean_all_data,
     }
 

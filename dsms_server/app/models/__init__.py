@@ -13,6 +13,9 @@ from .models import (
     Title,
     UserOperationLog,
     UserMessage,
+    SystemMessage,
+    Announcement,
+    AnnouncementReader,
 )
 
 from .schemas import (
@@ -45,6 +48,9 @@ __all__ = [
     "Title",
     "UserOperationLog",
     "UserMessage",
+    "SystemMessage",
+    "Announcement",
+    "AnnouncementReader",
     "DetectInfoItem",
     "DefectDetailItem",
     "PermissionItem",
