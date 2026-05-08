@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-数据库初始化脚本 - 整合版
+数据库初始化脚本
 
 功能说明:
     - clear: 清空数据库所有数据
@@ -23,54 +23,25 @@
 """
 
 import sys
+import bcrypt
+import logging
 from pathlib import Path
+from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config.database import db_config
-from app.models import models
+from app.models import Title, Department, DefectType, Role, User
+from app.core.system_roles import get_all_system_roles, get_default_permissions, SystemRole
 from sqlmodel import select
 from sqlalchemy import text
-import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
-def get_all_table_names():
-    """获取所有表名"""
-    with db_config.engine.connect() as conn:
-        result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
-        return [row[0] for row in result]
-
-
-def clear_database():
-    """清空数据库所有数据"""
-    logger.info("=" * 50)
-    logger.info("开始清空数据库...")
-    logger.info("=" * 50)
-
-    db_config.init_db()
-
-    with db_config.engine.connect() as conn:
-        for table_name in get_all_table_names():
-            conn.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))
-            logger.info(f"  已清空表: {table_name}")
-
-    logger.info("=" * 50)
-    logger.info("数据库清空完成!")
-    logger.info("=" * 50)
-
-
-def init_base_data():
-    """初始化基础数据（职称、部门、缺陷类型）"""
-    logger.info("=" * 50)
-    logger.info("开始初始化基础数据...")
-    logger.info("=" * 50)
-
-    db_config.init_db()
-
-    from app.models import Title, Department, DefectType
+class DatabaseInitializer:
+    """数据库初始化器"""
 
     DEFAULT_TITLES = [
         {"title_id": 1, "title_name": "高级工程师"},
@@ -104,190 +75,206 @@ def init_base_data():
         {"defect_type_id": 6, "defect_type_name": "磨损"},
     ]
 
-    with db_config.get_session() as session:
-        logger.info("初始化职称数据...")
-        for title_data in DEFAULT_TITLES:
-            result = session.execute(select(Title).where(Title.title_id == title_data["title_id"]))
-            existing = result.scalar_one_or_none()
-            if existing:
-                existing.title_name = title_data["title_name"]
-                logger.info(f"  更新职称: {title_data['title_name']}")
-            else:
-                title = Title(
-                    title_id=title_data["title_id"],
-                    title_name=title_data["title_name"]
-                )
-                session.add(title)
-                logger.info(f"  创建职称: {title_data['title_name']}")
+    ADMIN_USERNAME = "admin"
+    ADMIN_PASSWORD = "admin123"
+    ADMIN_REAL_NAME = "超级管理员"
+    ADMIN_EMAIL = "admin@example.com"
+    ADMIN_PHONE = "13800138000"
 
-        logger.info("初始化部门数据...")
-        for dept_data in DEFAULT_DEPARTMENTS:
-            result = session.execute(select(Department).where(Department.department_id == dept_data["department_id"]))
-            existing = result.scalar_one_or_none()
-            if existing:
-                existing.department_code = dept_data["department_code"]
-                existing.department_name = dept_data["department_name"]
-                existing.parent_id = dept_data["parent_id"]
-                logger.info(f"  更新部门: {dept_data['department_name']}")
-            else:
-                dept = Department(
-                    department_id=dept_data["department_id"],
-                    department_code=dept_data["department_code"],
-                    department_name=dept_data["department_name"],
-                    parent_id=dept_data["parent_id"]
-                )
-                session.add(dept)
-                logger.info(f"  创建部门: {dept_data['department_name']}")
+    def __init__(self):
+        db_config.init_db()
 
-        logger.info("初始化缺陷类型数据...")
-        for defect_data in DEFAULT_DEFECT_TYPES:
-            result = session.execute(select(DefectType).where(DefectType.defect_type_id == defect_data["defect_type_id"]))
-            existing = result.scalar_one_or_none()
-            if existing:
-                existing.defect_type_name = defect_data["defect_type_name"]
-                logger.info(f"  更新缺陷类型: {defect_data['defect_type_name']}")
-            else:
-                defect = DefectType(
-                    defect_type_id=defect_data["defect_type_id"],
-                    defect_type_name=defect_data["defect_type_name"]
-                )
-                session.add(defect)
-                logger.info(f"  创建缺陷类型: {defect_data['defect_type_name']}")
+    def get_all_table_names(self):
+        """获取所有表名"""
+        with db_config.engine.connect() as conn:
+            result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
+            return [row[0] for row in result]
 
-        session.commit()
+    def clear_database(self):
+        """清空数据库所有数据"""
+        logger.info("=" * 50)
+        logger.info("开始清空数据库...")
+        logger.info("=" * 50)
 
-    logger.info("=" * 50)
-    logger.info("基础数据初始化完成!")
-    logger.info("=" * 50)
+        for table_name in self.get_all_table_names():
+            with db_config.engine.connect() as conn:
+                conn.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))
+            logger.info(f"  已清空表: {table_name}")
 
+        logger.info("=" * 50)
+        logger.info("数据库清空完成!")
+        logger.info("=" * 50)
 
-def init_system_roles():
-    """初始化系统角色"""
-    logger.info("=" * 50)
-    logger.info("开始初始化系统角色...")
-    logger.info("=" * 50)
+    def init_base_data(self):
+        """初始化基础数据（职称、部门、缺陷类型）"""
+        logger.info("=" * 50)
+        logger.info("开始初始化基础数据...")
+        logger.info("=" * 50)
 
-    db_config.init_db()
+        with db_config.get_session() as session:
+            logger.info("初始化职称数据...")
+            for title_data in self.DEFAULT_TITLES:
+                result = session.execute(select(Title).where(Title.title_id == title_data["title_id"]))
+                existing = result.scalar_one_or_none()
+                if existing:
+                    existing.title_name = title_data["title_name"]
+                    logger.info(f"  更新职称: {title_data['title_name']}")
+                else:
+                    title = Title(title_id=title_data["title_id"], title_name=title_data["title_name"])
+                    session.add(title)
+                    logger.info(f"  创建职称: {title_data['title_name']}")
 
-    from app.models import Role
-    from app.core.system_roles import get_all_system_roles, get_default_permissions
-    import uuid
+            logger.info("初始化部门数据...")
+            for dept_data in self.DEFAULT_DEPARTMENTS:
+                result = session.execute(select(Department).where(Department.department_id == dept_data["department_id"]))
+                existing = result.scalar_one_or_none()
+                if existing:
+                    existing.department_code = dept_data["department_code"]
+                    existing.department_name = dept_data["department_name"]
+                    existing.parent_id = dept_data["parent_id"]
+                    logger.info(f"  更新部门: {dept_data['department_name']}")
+                else:
+                    dept = Department(
+                        department_id=dept_data["department_id"],
+                        department_code=dept_data["department_code"],
+                        department_name=dept_data["department_name"],
+                        parent_id=dept_data["parent_id"]
+                    )
+                    session.add(dept)
+                    logger.info(f"  创建部门: {dept_data['department_name']}")
 
-    with db_config.get_session() as session:
-        logger.info("获取现有系统角色...")
-        existing_roles = session.execute(
-            select(Role).where(Role.is_system_role == True)
-        ).scalars().all()
-
-        if existing_roles:
-            logger.info(f"发现 {len(existing_roles)} 个现有系统角色，正在清空...")
-            old_role_ids = [r.role_id for r in existing_roles]
-
-            temp_role_name = f"_temp_role_{uuid.uuid4().hex[:8]}"
-            temp_role = Role(
-                role_name=temp_role_name,
-                desc="Temporary role for migration",
-                is_system_role=False,
-                permissions=[]
-            )
-            session.add(temp_role)
-            session.flush()
-            temp_role_id = temp_role.role_id
-
-            for old_id in old_role_ids:
-                session.execute(
-                    text("UPDATE users SET role_id = :new_id WHERE role_id = :old_id"),
-                    {"new_id": temp_role_id, "old_id": old_id}
-                )
-
-            for old_role in existing_roles:
-                session.delete(old_role)
+            logger.info("初始化缺陷类型数据...")
+            for defect_data in self.DEFAULT_DEFECT_TYPES:
+                result = session.execute(select(DefectType).where(DefectType.defect_type_id == defect_data["defect_type_id"]))
+                existing = result.scalar_one_or_none()
+                if existing:
+                    existing.defect_type_name = defect_data["defect_type_name"]
+                    logger.info(f"  更新缺陷类型: {defect_data['defect_type_name']}")
+                else:
+                    defect = DefectType(
+                        defect_type_id=defect_data["defect_type_id"],
+                        defect_type_name=defect_data["defect_type_name"]
+                    )
+                    session.add(defect)
+                    logger.info(f"  创建缺陷类型: {defect_data['defect_type_name']}")
 
             session.commit()
-            logger.info(f"已清空 {len(existing_roles)} 个系统角色")
 
-        logger.info("插入系统角色...")
-        for role_info in get_all_system_roles():
-            role_name = role_info["role_name"]
-            role = Role(
-                role_name=role_name,
-                desc=role_info["description"],
-                is_system_role=True,
-                permissions=get_default_permissions(role_info["role_key"])
-            )
-            session.add(role)
-            logger.info(f"  创建角色: {role_name}")
+        logger.info("=" * 50)
+        logger.info("基础数据初始化完成!")
+        logger.info("=" * 50)
 
-        session.commit()
+    def init_system_roles(self):
+        """初始化系统角色"""
+        logger.info("=" * 50)
+        logger.info("开始初始化系统角色...")
+        logger.info("=" * 50)
 
-    logger.info("=" * 50)
-    logger.info("系统角色初始化完成!")
-    logger.info("=" * 50)
+        with db_config.get_session() as session:
+            existing_roles = session.execute(select(Role).where(Role.is_system_role == True)).scalars().all()
 
+            if existing_roles:
+                logger.info(f"发现 {len(existing_roles)} 个现有系统角色，正在清空...")
+                old_role_ids = [r.role_id for r in existing_roles]
 
-def create_super_admin():
-    """创建超级管理员"""
-    logger.info("=" * 50)
-    logger.info("开始创建超级管理员...")
-    logger.info("=" * 50)
+                temp_role_name = f"_temp_role_{uuid4().hex[:8]}"
+                temp_role = Role(
+                    role_name=temp_role_name,
+                    desc="Temporary role for migration",
+                    is_system_role=False,
+                    permissions=[]
+                )
+                session.add(temp_role)
+                session.flush()
+                temp_role_id = temp_role.role_id
 
-    import bcrypt
-    from uuid import uuid4
-    from app.models import User, Role, Title
-    from app.core.system_roles import SystemRole
+                for old_id in old_role_ids:
+                    session.execute(
+                        text("UPDATE users SET role_id = :new_id WHERE role_id = :old_id"),
+                        {"new_id": temp_role_id, "old_id": old_id}
+                    )
 
-    username = "admin"
-    password = "admin123"
-    real_name = "超级管理员"
-    email = "admin@example.com"
-    phone = "13800138000"
+                for old_role in existing_roles:
+                    session.delete(old_role)
 
-    with db_config.get_session() as session:
-        super_role = session.execute(
-            select(Role).where(Role.role_name == SystemRole.ROLE_NAMES[SystemRole.SUPER_SYS_ADMIN])
-        ).scalar_one_or_none()
+                session.commit()
+                logger.info(f"已清空 {len(existing_roles)} 个系统角色")
 
-        if not super_role:
-            logger.error("超级管理员角色不存在，请先运行 init-roles")
-            return
+            logger.info("插入系统角色...")
+            for role_info in get_all_system_roles():
+                role_name = role_info["role_name"]
+                role = Role(
+                    role_name=role_name,
+                    desc=role_info["description"],
+                    is_system_role=True,
+                    permissions=get_default_permissions(role_info["role_key"])
+                )
+                session.add(role)
+                logger.info(f"  创建角色: {role_name}")
 
-        first_title = session.execute(select(Title)).scalars().first()
-        if not first_title:
-            logger.error("职称数据不存在，请先运行 init")
-            return
-
-        existing_user = session.execute(select(User).where(User.user_name == username)).scalar_one_or_none()
-
-        if existing_user:
-            logger.warning(f"用户 '{username}' 已存在，正在更新...")
-            existing_user.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            existing_user.real_name = real_name
-            existing_user.email = email
-            existing_user.phone = phone
-            existing_user.role_id = super_role.role_id
-            existing_user.title_id = 9
             session.commit()
-            logger.info(f"已更新用户: {username}")
-        else:
-            user = User(
-                user_id=uuid4(),
-                user_name=username,
-                password_hash=bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
-                real_name=real_name,
-                email=email,
-                phone=phone,
-                role_id=super_role.role_id,
-                title_id=9
-            )
-            session.add(user)
-            session.commit()
-            logger.info(f"超级管理员创建成功!")
-            logger.info(f"  用户名: {username}")
-            logger.info(f"  密码: {password}")
 
-    logger.info("=" * 50)
-    logger.info("超级管理员创建完成!")
-    logger.info("=" * 50)
+        logger.info("=" * 50)
+        logger.info("系统角色初始化完成!")
+        logger.info("=" * 50)
+
+    def create_super_admin(self):
+        """创建超级管理员"""
+        logger.info("=" * 50)
+        logger.info("开始创建超级管理员...")
+        logger.info("=" * 50)
+
+        with db_config.get_session() as session:
+            super_role = session.execute(
+                select(Role).where(Role.role_name == SystemRole.ROLE_NAMES[SystemRole.SUPER_SYS_ADMIN])
+            ).scalar_one_or_none()
+
+            if not super_role:
+                logger.error("超级管理员角色不存在，请先运行 init-roles")
+                return False
+
+            first_title = session.execute(select(Title)).scalars().first()
+            if not first_title:
+                logger.error("职称数据不存在，请先运行 init")
+                return False
+
+            existing_user = session.execute(select(User).where(User.user_name == self.ADMIN_USERNAME)).scalar_one_or_none()
+
+            if existing_user:
+                logger.warning(f"用户 '{self.ADMIN_USERNAME}' 已存在，正在更新...")
+                existing_user.password_hash = bcrypt.hashpw(
+                    self.ADMIN_PASSWORD.encode('utf-8'), bcrypt.gensalt()
+                ).decode('utf-8')
+                existing_user.real_name = self.ADMIN_REAL_NAME
+                existing_user.email = self.ADMIN_EMAIL
+                existing_user.phone = self.ADMIN_PHONE
+                existing_user.role_id = super_role.role_id
+                existing_user.title_id = 9
+                session.commit()
+                logger.info(f"已更新用户: {self.ADMIN_USERNAME}")
+            else:
+                user = User(
+                    user_id=uuid4(),
+                    user_name=self.ADMIN_USERNAME,
+                    password_hash=bcrypt.hashpw(
+                        self.ADMIN_PASSWORD.encode('utf-8'), bcrypt.gensalt()
+                    ).decode('utf-8'),
+                    real_name=self.ADMIN_REAL_NAME,
+                    email=self.ADMIN_EMAIL,
+                    phone=self.ADMIN_PHONE,
+                    role_id=super_role.role_id,
+                    title_id=9
+                )
+                session.add(user)
+                session.commit()
+                logger.info(f"超级管理员创建成功!")
+                logger.info(f"  用户名: {self.ADMIN_USERNAME}")
+                logger.info(f"  密码: {self.ADMIN_PASSWORD}")
+
+        logger.info("=" * 50)
+        logger.info("超级管理员创建完成!")
+        logger.info("=" * 50)
+        return True
 
 
 def main():
@@ -302,21 +289,22 @@ def main():
         print("  all        - 完整初始化（清空+初始化+角色+管理员）")
         return
 
+    initializer = DatabaseInitializer()
     command = sys.argv[1].lower()
 
     if command == "clear":
-        clear_database()
+        initializer.clear_database()
     elif command == "init":
-        init_base_data()
+        initializer.init_base_data()
     elif command == "init-roles":
-        init_system_roles()
+        initializer.init_system_roles()
     elif command == "init-admin":
-        create_super_admin()
+        initializer.create_super_admin()
     elif command == "all":
-        clear_database()
-        init_base_data()
-        init_system_roles()
-        create_super_admin()
+        initializer.clear_database()
+        initializer.init_base_data()
+        initializer.init_system_roles()
+        initializer.create_super_admin()
         print("\n" + "=" * 50)
         print("数据库完整初始化完成!")
         print("默认管理员账号: admin / admin123")
