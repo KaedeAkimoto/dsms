@@ -34,14 +34,21 @@ from app.models import (
 from sqlmodel import select, delete
 
 
-# 默认缺陷图片（使用简单的占位图片）
 import base64
 
-# 生成一个简单的1x1像素的红色GIF图片作为占位符
-DEFAULT_DEFECT_IMAGE_DATA = base64.b64decode(
-    "R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
-)
-DEFAULT_IMAGE_FORMAT = "gif"
+
+def load_sample_image():
+    """加载示例缺陷图片"""
+    sample_path = Path(__file__).parent / "sample_017_original.jpg"
+    if sample_path.exists():
+        with open(sample_path, "rb") as f:
+            return f.read(), "jpeg"
+    return base64.b64decode(
+        "R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+    ), "gif"
+
+
+DEFAULT_DEFECT_IMAGE_DATA, DEFAULT_IMAGE_FORMAT = load_sample_image()
 
 
 def clean_detection_data():

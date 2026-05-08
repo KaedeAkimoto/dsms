@@ -70,7 +70,8 @@ detection_records (
 defect_details (
     defect_details_id   string      PK,             # uuid
     record_batch_id     string      FK  NOT NULL,
-    original_img        vchar(500)      NOT NULL,   #imgurl
+    image               blob        NOT NULL,       # 原始图片二进制数据
+    image_format        vchar(20)   NOT NULL,       # 图片格式: jpeg, png, webp等
     defect_count        int,
     details             JSONB,                      # [{'defect_type_id': ?, 'xyhw': (?,?,?,?), 'conf':?}, ...]
 )
