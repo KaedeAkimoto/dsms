@@ -13,7 +13,8 @@ from app.schemas.detection import (
     ReviewTaskResponse,
     ReviewTaskListResponse,
     ReviewTaskUpdateRequest,
-    ReviewTaskTransferRequest
+    ReviewTaskTransferRequest,
+    ReviewTaskCreateRequest
 )
 from app.services.detection import detection_service
 from app.services.audit_log import audit_log_writer
@@ -289,6 +290,53 @@ async def get_my_review_tasks(
             tasks=[ReviewTaskResponse.from_orm(t).model_dump(mode="json") for t in tasks]
         ).model_dump(mode='json'),
         message="获取我的审查任务成功"
+    )
+
+
+@api(
+    path="/review-tasks",
+    method="POST",
+    name="创建审查任务",
+    description="创建审查任务，将缺陷分配给质检员进行人工审查",
+    tags=["检测数据"]
+)
+@router.post("/review-tasks")
+async def create_review_task(
+    request: ReviewTaskCreateRequest,
+    user=Depends(require_permission)
+):
+    """创建审查任务"""
+    # 检查缺陷详情是否存在
+    defect_detail = detection_service.get_defect_detail(request.defect_details_id)
+    if not defect_detail:
+        raise HTTPException(status_code=404, detail="缺陷详情不存在")
+
+    # 创建审查任务
+    task = detection_service.create_review_task(
+        defect_details_id=request.defect_details_id,
+        assignee_id=request.assignee_id
+    )
+
+    # 发送消息通知被分配人
+    try:
+        user_message_service.create_message(
+            send_user=user["user_id"],
+            receive_user=request.assignee_id,
+            content=f"您收到一个新的审查任务，请及时处理。"
+        )
+    except Exception:
+        pass
+
+    # 写入审计日志
+    audit_log_writer.write_success(
+        user_id=user["user_id"],
+        operation_type="创建审查任务",
+        operation_details=f"创建审查任务：缺陷详情ID {request.defect_details_id}，分配给 {request.assignee_id}"
+    )
+
+    return SuccessResponse(
+        data=ReviewTaskResponse.from_orm(task).model_dump(mode="json"),
+        message="审查任务创建成功"
     )
 
 

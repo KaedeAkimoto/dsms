@@ -116,9 +116,19 @@ class DatabaseConfig:
                 import asyncio
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    loop.create_task(self._async_engine.dispose())
+                    # 在运行中的循环上，创建任务并等待完成
+                    async def dispose_async():
+                        await self._async_engine.dispose()
+                    asyncio.ensure_future(dispose_async())
                 else:
-                    loop.run_until_complete(self._async_engine.dispose())
+                    # 在已停止的循环上，使用新的事件循环来执行清理
+                    asyncio.run(self._async_engine.dispose())
+            except RuntimeError:
+                # 处理事件循环已关闭的情况
+                try:
+                    asyncio.run(self._async_engine.dispose())
+                except Exception:
+                    pass
             except Exception:
                 pass
 

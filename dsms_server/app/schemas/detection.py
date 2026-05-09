@@ -153,3 +153,9 @@ class ReviewTaskUpdateRequest(BaseModel):
 class ReviewTaskTransferRequest(BaseModel):
     """移交审查任务请求"""
     new_assignee_id: UUID = Field(description="新负责人ID")
+
+
+class ReviewTaskCreateRequest(BaseModel):
+    """创建审查任务请求"""
+    defect_details_id: UUID = Field(description="缺陷详情ID")
+    assignee_id: UUID = Field(description="被分配任务的质检员ID")

@@ -316,8 +316,18 @@ interface ReviewTask {
 }
 
 interface ReviewTaskUpdateRequest {
-  review_status: string;             // approved | rejected
-  review_comment?: string;
+  reviewer_id?: string;              // 审查员ID
+  review_status?: string;            // pending | completed | cancel | timeout
+  review_result?: string;            // confirmed | false_positive | uncertain | confusion
+  review_defect_count?: number;      // 审查确认的缺陷数量
+  has_details?: boolean;             // 是否有细节更改
+  review_details?: any[];            // 审查后的缺陷详情
+  review_comment?: string;           // 审查备注
+}
+
+interface ReviewTaskCreateRequest {
+  defect_details_id: string;         // 必填，缺陷详情ID
+  assignee_id: string;               // 必填，被分配任务的质检员ID
 }
 ```
 
@@ -2256,7 +2266,50 @@ interface AuditLog {
 
 ---
 
-### 10.2 获取审查任务详情
+### 10.2 创建审查任务
+
+**接口**: `POST /review-tasks`
+
+**说明**: 创建审查任务，将缺陷分配给质检员进行人工审查
+
+**是否需要认证**: 是
+
+**请求体**:
+```json
+{
+  "defect_details_id": "string",   // 必填，缺陷详情ID（UUID格式）
+  "assignee_id": "string"          // 必填，被分配任务的质检员ID（UUID格式）
+}
+```
+
+**响应示例**:
+```json
+{
+  "code": 0,
+  "message": "审查任务创建成功",
+  "data": {
+    "review_task_id": "uuid-string",
+    "defect_details_id": "uuid-string",
+    "assignee_id": "uuid-string",
+    "reviewer_id": null,
+    "review_status": "pending",
+    "review_result": null,
+    "review_defect_count": null,
+    "has_details": null,
+    "review_details": null,
+    "review_comment": null,
+    "assignee_at": "2024-01-01T00:00:00Z",
+    "completed_at": null
+  }
+}
+```
+
+**错误响应**:
+- 404: 缺陷详情不存在
+
+---
+
+### 10.3 获取审查任务详情
 
 **接口**: `GET /review-tasks/{review_task_id}`
 
@@ -2277,7 +2330,7 @@ interface AuditLog {
 
 ---
 
-### 10.3 更新审查任务
+### 10.4 更新审查任务
 
 **接口**: `PUT /review-tasks/{review_task_id}`
 
@@ -2346,7 +2399,7 @@ interface AuditLog {
 
 ---
 
-### 10.4 获取我的审查任务
+### 10.5 获取我的审查任务
 
 **接口**: `GET /review-tasks/me`
 
@@ -2370,7 +2423,7 @@ interface AuditLog {
 
 ---
 
-### 10.5 转交审查任务
+### 10.6 转交审查任务
 
 **接口**: `POST /review-tasks/{review_task_id}/transfer`
 
