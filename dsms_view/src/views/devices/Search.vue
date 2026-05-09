@@ -104,8 +104,9 @@
           <el-form-item label="状态">
             <el-select v-model="editForm.status">
               <el-option label="未激活" value="inactive" />
-              <el-option label="在线" value="online" />
-              <el-option label="离线" value="offline" />
+              <el-option label="运行中" value="active" />
+              <el-option label="故障" value="fault" />
+              <el-option label="维护中" value="maintenance" />
             </el-select>
           </el-form-item>
         </el-form>

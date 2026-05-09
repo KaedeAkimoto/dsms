@@ -15,7 +15,7 @@
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.online_count }}</div>
-            <div class="stat-label">在线设备</div>
+            <div class="stat-label">运行中</div>
           </div>
         </el-card>
         <el-card class="stat-card">
@@ -148,10 +148,11 @@ const initCharts = () => {
  show: false
  },
  data: [
- { value: stats.online_count, name: '在线', itemStyle: { color: '#67C23A' } },
- { value: stats.offline_count, name: '离线', itemStyle: { color: '#E6A23C' } },
- { value: stats.inactive_count, name: '未激活', itemStyle: { color: '#909399' } }
- ]
+{ value: stats.online_count, name: '运行中', itemStyle: { color: '#67C23A' } },
+{ value: stats.offline_count, name: '故障', itemStyle: { color: '#F56C6C' } },
+{ value: stats.maintenance_count, name: '维护中', itemStyle: { color: '#E6A23C' } },
+{ value: stats.inactive_count, name: '未激活', itemStyle: { color: '#909399' } }
+]
  }
  ]
  });
@@ -319,18 +320,20 @@ const refreshData = async () => {
     const res = await deviceService.getList();
     const devices = (res.data.devices || []).filter(d => d.status !== 'removed');
     stats.total_count = devices.length;
-    stats.online_count = devices.filter(d => d.status === 'online').length;
-    stats.offline_count = devices.filter(d => d.status === 'offline').length;
+    stats.online_count = devices.filter(d => d.status === 'active').length;
+    stats.offline_count = devices.filter(d => d.status === 'fault').length;
     stats.inactive_count = devices.filter(d => d.status === 'inactive').length;
+    stats.maintenance_count = devices.filter(d => d.status === 'maintenance').length;
  if (pieChartInstance) {
  pieChartInstance.setOption({
  series: [
  {
  data: [
- { value: stats.online_count, name: '在线', itemStyle: { color: '#67C23A' } },
- { value: stats.offline_count, name: '离线', itemStyle: { color: '#E6A23C' } },
- { value: stats.inactive_count, name: '未激活', itemStyle: { color: '#909399' } }
- ]
+{ value: stats.online_count, name: '运行中', itemStyle: { color: '#67C23A' } },
+{ value: stats.offline_count, name: '故障', itemStyle: { color: '#F56C6C' } },
+{ value: stats.maintenance_count, name: '维护中', itemStyle: { color: '#E6A23C' } },
+{ value: stats.inactive_count, name: '未激活', itemStyle: { color: '#909399' } }
+]
  }
  ]
  });

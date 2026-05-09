@@ -9,6 +9,10 @@ export const reviewService = {
     return api.get(`/review-tasks/${review_task_id}`)
   },
 
+  create(data) {
+    return api.post('/review-tasks', data)
+  },
+
   update(review_task_id, data) {
     return api.put(`/review-tasks/${review_task_id}`, data)
   },

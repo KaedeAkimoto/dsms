@@ -48,66 +48,16 @@
         />
       </div>
     </el-card>
-
-    <el-dialog 
-      title="检测记录详情" 
-      v-model="detailDialog.visible" 
-      width="600px"
-      :close-on-click-modal="false"
-    >
-      <div v-if="detailDialog.loading" class="text-center py-8">
-        <el-spinner size="medium" />
-      </div>
-      <div v-else-if="detailDialog.data" class="detail-content">
-        <el-form :model="detailDialog.data" label-width="120px">
-          <el-form-item label="批次ID">
-            <span class="detail-value">{{ detailDialog.data.record_batch_id }}</span>
-          </el-form-item>
-          <el-form-item label="设备ID">
-            <span class="detail-value">{{ detailDialog.data.device_id }}</span>
-          </el-form-item>
-          <el-form-item label="检测数">
-            <span class="detail-value">{{ detailDialog.data.detect_count }}</span>
-          </el-form-item>
-          <el-form-item label="通过数">
-            <span class="detail-value">{{ detailDialog.data.pass_count }}</span>
-          </el-form-item>
-          <el-form-item label="失败数">
-            <span class="detail-value">{{ (detailDialog.data.detect_count || 0) - (detailDialog.data.pass_count || 0) }}</span>
-          </el-form-item>
-          <el-form-item label="是否有缺陷">
-            <span class="detail-value">
-              <el-tag :type="detailDialog.data.has_defect ? 'danger' : 'success'">
-                {{ detailDialog.data.has_defect ? '有缺陷' : '无缺陷' }}
-              </el-tag>
-            </span>
-          </el-form-item>
-          <el-form-item label="创建时间">
-            <span class="detail-value">{{ formatDateTime(detailDialog.data.created_at) }}</span>
-          </el-form-item>
-          <el-form-item label="最新上传时间">
-            <span class="detail-value">{{ formatDateTime(detailDialog.data.latest_upload_at) }}</span>
-          </el-form-item>
-        </el-form>
-
-        <div v-if="detailDialog.data.defect_details && detailDialog.data.defect_details.length > 0" class="mt-4">
-          <h4 class="mb-3">缺陷详情</h4>
-          <el-table :data="detailDialog.data.defect_details" style="width: 100%;">
-            <el-table-column prop="defect_type_name" label="缺陷类型" />
-            <el-table-column prop="count" label="数量" />
-          </el-table>
-        </div>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { detectionService } from '../../services/detection'
 import { formatDateTime } from '../../utils/date'
 
+const router = useRouter()
 const loading = ref(false)
 const tableData = ref([])
 
@@ -119,12 +69,6 @@ const pagination = reactive({
   page: 1,
   limit: 20,
   total: 0
-})
-
-const detailDialog = reactive({
-  visible: false,
-  loading: false,
-  data: null
 })
 
 const loadData = async () => {
@@ -167,20 +111,8 @@ const handleCurrentChange = () => {
   loadData()
 }
 
-const handleViewDetail = async (row) => {
-  detailDialog.visible = true
-  detailDialog.loading = true
-  detailDialog.data = null
-  
-  try {
-    const res = await detectionService.getById(row.record_batch_id)
-    detailDialog.data = res.data
-  } catch (error) {
-    console.error('Load detection detail failed:', error)
-    ElMessage.error('获取检测详情失败')
-  } finally {
-    detailDialog.loading = false
-  }
+const handleViewDetail = (row) => {
+  router.push(`/detections/defect-detail/${row.record_batch_id}`)
 }
 
 onMounted(() => {

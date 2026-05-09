@@ -129,6 +129,18 @@ const routes = [
         meta: { title: '检测统计', parent: '质量管理' }
       },
       {
+        path: 'detections/defect-list',
+        name: 'DefectList',
+        component: () => import('../views/detections/DefectList.vue'),
+        meta: { title: '缺陷详情列表', parent: '质量管理' }
+      },
+      {
+        path: 'detections/defect-detail/:recordBatchId',
+        name: 'DefectDetail',
+        component: () => import('../views/detections/DefectDetail.vue'),
+        meta: { title: '缺陷详情', parent: '质量管理' }
+      },
+      {
         path: 'reviews',
         name: 'Reviews',
         component: () => import('../views/reviews/Index.vue'),

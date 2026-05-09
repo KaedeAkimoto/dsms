@@ -78,6 +78,7 @@
               <template #title>检测记录</template>
               <el-menu-item index="/detections">检测总览</el-menu-item>
               <el-menu-item index="/detections/stats">检测统计</el-menu-item>
+              <el-menu-item index="/detections/defect-list">缺陷详情列表</el-menu-item>
             </el-sub-menu>
             <el-sub-menu index="/quality/reviews">
               <template #title>审查任务</template>
@@ -292,7 +293,8 @@ const handleCommand = (command) => {
   background: #f5f7fa;
   padding: 16px;
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 :deep(.router-view-container) {

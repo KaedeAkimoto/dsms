@@ -266,9 +266,10 @@ const createRules = {
 }
 
 const totalCount = computed(() => devices.value.length)
-const onlineCount = computed(() => devices.value.filter(d => d.status === 'online').length)
-const offlineCount = computed(() => devices.value.filter(d => d.status === 'offline').length)
+const onlineCount = computed(() => devices.value.filter(d => d.status === 'active').length)
+const offlineCount = computed(() => devices.value.filter(d => d.status === 'fault').length)
 const inactiveCount = computed(() => devices.value.filter(d => d.status === 'inactive').length)
+const maintenanceCount = computed(() => devices.value.filter(d => d.status === 'maintenance').length)
 const removedCount = computed(() => removedDevices.value.length)
 
 const filteredDevices = computed(() => {
@@ -296,12 +297,12 @@ const filteredDevices = computed(() => {
 })
 
 const getStatusType = (status) => {
-  const types = { online: 'success', offline: 'warning', inactive: 'info', removed: 'danger' }
+  const types = { active: 'success', fault: 'danger', inactive: 'info', maintenance: 'warning', removed: 'danger' }
   return types[status] || ''
 }
 
 const getStatusText = (status) => {
-  const texts = { online: '在线', offline: '离线', inactive: '未激活', removed: '已删除' }
+  const texts = { active: '运行中', fault: '故障', inactive: '未激活', maintenance: '维护中', removed: '已删除' }
   return texts[status] || status
 }
 
