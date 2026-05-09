@@ -9,7 +9,7 @@
               v-if="hasDefect && !hasReviewTask" 
               type="warning" 
               size="small" 
-              @click="submitReviewTask"
+              @click="openAssigneeDialog"
               :loading="submitting"
             >
               提交人工检测
@@ -204,6 +204,30 @@
         </div>
       </div>
     </el-dialog>
+
+    <el-dialog v-model="showAssigneeDialog" title="选择质检员" width="400px">
+      <el-form :model="assigneeForm" label-width="100px">
+        <el-form-item label="质检员" required>
+          <el-select 
+            v-model="assigneeForm.assignee_id" 
+            placeholder="请选择质检员"
+            filterable
+            clearable
+          >
+            <el-option 
+              v-for="user in inspectorUsers" 
+              :key="user.user_id" 
+              :label="user.real_name || user.user_name" 
+              :value="user.user_id" 
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showAssigneeDialog = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmitReview">确认提交</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -212,11 +236,14 @@ import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { detectionService } from '../../services/detection';
 import { reviewService } from '../../services/review';
+import { userService } from '../../services/user';
 import { useDefectTypeStore } from '../../stores/defectType';
+import { useAuthStore } from '../../stores/auth';
 import { formatDateTime } from '../../utils/date';
 const router = useRouter();
 const route = useRoute();
 const defectTypeStore = useDefectTypeStore();
+const authStore = useAuthStore();
 const loading = ref(false);
 const submitting = ref(false);
 const detailData = ref(null);
@@ -226,6 +253,11 @@ const imageDialog = ref({
  visible: false,
  currentIndex: 0
 });
+const showAssigneeDialog = ref(false);
+const assigneeForm = ref({
+ assignee_id: ''
+});
+const inspectorUsers = ref([]);
 const hasDefect = computed(() => {
  if (!detailData.value)
  return false;
@@ -393,9 +425,24 @@ const getRectHeight = (xyhw) => {
 const goBack = () => {
  router.push('/detections');
 };
-const submitReviewTask = async () => {
+const openAssigneeDialog = async () => {
+ try {
+ const res = await userService.getList({ limit: 1000 });
+ inspectorUsers.value = res.data.users || [];
+ showAssigneeDialog.value = true;
+ } catch (error) {
+ console.error('Load users failed:', error);
+ ElMessage.error('加载用户列表失败');
+ }
+};
+const handleSubmitReview = async () => {
  if (!detailData.value?.record_batch_id) {
  ElMessage.error('缺少批次ID');
+ return;
+ }
+ 
+ if (!assigneeForm.value.assignee_id) {
+ ElMessage.error('请选择质检员');
  return;
  }
  
@@ -410,15 +457,18 @@ const submitReviewTask = async () => {
  return;
  }
  
+ const assigneeId = assigneeForm.value.assignee_id;
  await Promise.all(defectDetailsIds.map(defectDetailsId => {
  return reviewService.create({
  defect_details_id: defectDetailsId,
- assignee_id: ''
+ assignee_id: assigneeId
  });
  }));
  
  ElMessage.success('提交人工检测成功');
  detailData.value.has_review_task = true;
+ showAssigneeDialog.value = false;
+ assigneeForm.value.assignee_id = '';
  } catch (error) {
  console.error('Submit review task failed:', error);
  ElMessage.error('提交人工检测失败');

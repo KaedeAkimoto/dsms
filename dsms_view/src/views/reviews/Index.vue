@@ -114,18 +114,84 @@
             </el-form>
           </div>
           
-          <div v-if="reviewDefectDetail.data" style="width: 320px; border-left: 1px solid #DCDFE6; padding-left: 24px;">
-            <h4 style="margin-bottom: 16px; color: #303133;">缺陷详情</h4>
+          <div v-if="reviewDefectDetail.data" style="width: 400px; border-left: 1px solid #DCDFE6; padding-left: 24px;">
+            <h4 style="margin-bottom: 16px; color: #303133;">缺陷标注</h4>
+            
             <div v-if="reviewDefectDetail.data.image_base64" style="margin-bottom: 16px;">
-              <p style="margin-bottom: 8px; color: #606266; font-size: 14px;">原始图片：</p>
-              <img :src="`data:image/${reviewDefectDetail.data.image_format};base64,${reviewDefectDetail.data.image_base64}`" alt="缺陷图片" style="max-width: 100%; max-height: 200px; object-fit: contain; border: 1px solid #DCDFE6; border-radius: 4px;" />
+              <p style="margin-bottom: 8px; color: #606266; font-size: 14px;">
+                原始图片 
+                <el-button v-if="reviewForm.has_details" type="text" size="small" @click="clearAllBoxes" style="padding: 0; margin-left: 8px; color: #F56C6C;">
+                  清空标注
+                </el-button>
+              </p>
+              <div class="canvas-container" ref="canvasContainer" @mousedown="startDraw" @mousemove="drawing" @mouseup="endDraw">
+                <img 
+                  :src="`data:image/${reviewDefectDetail.data.image_format};base64,${reviewDefectDetail.data.image_base64}`" 
+                  alt="缺陷图片" 
+                  class="defect-image"
+                  ref="defectImage"
+                  draggable="false"
+                  @mousedown.prevent
+                  @load="onImageLoad"
+                />
+                <svg class="overlay-svg" ref="overlaySvg" :width="overlayWidth || '100%'" :height="overlayHeight || '100%'" style="position: absolute; top: 0; left: 0;">
+                  <rect 
+                    v-for="(box, index) in drawnBoxes" 
+                    :key="index"
+                    :x="getScaledX(box.x)"
+                    :y="getScaledY(box.y)"
+                    :width="getScaledWidth(box.width)"
+                    :height="getScaledHeight(box.height)"
+                    :fill="getDefectColor(box.defect_type_id)"
+                    fill-opacity="0.3"
+                    stroke="red"
+                    stroke-width="2"
+                    class="drawn-box"
+                  />
+                  <rect 
+                    v-if="isDrawing"
+                    :x="getScaledX(currentBox.x)"
+                    :y="getScaledY(currentBox.y)"
+                    :width="getScaledWidth(currentBox.width)"
+                    :height="getScaledHeight(currentBox.height)"
+                    fill="blue"
+                    fill-opacity="0.2"
+                    stroke="blue"
+                    stroke-width="2"
+                    stroke-dasharray="5,5"
+                  />
+                </svg>
+              </div>
             </div>
-            <div style="margin-bottom: 12px;">
+            
+            <div v-if="reviewForm.has_details" class="mt-4">
+              <div style="margin-bottom: 12px;">
+                <el-select v-model="selectedDefectType" placeholder="选择缺陷类型" style="width: 100%;">
+                  <el-option 
+                    v-for="type in defectTypes" 
+                    :key="type.defect_type_id" 
+                    :label="type.defect_type_name" 
+                    :value="type.defect_type_id" 
+                  />
+                </el-select>
+              </div>
+              <div style="background: #F5F7FA; padding: 12px; border-radius: 4px;">
+                <p style="color: #606266; font-size: 14px; margin-bottom: 8px;">已标注缺陷 ({{ drawnBoxes.length }}个)：</p>
+                <ul style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto;">
+                  <li 
+                    v-for="(box, index) in drawnBoxes" 
+                    :key="index"
+                    class="defect-item"
+                  >
+                    <span>{{ getDefectTypeName(box.defect_type_id) }}</span>
+                    <el-button type="text" size="small" @click="removeBox(index)" style="color: #F56C6C; float: right;">删除</el-button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            
+            <div v-else style="margin-bottom: 12px;">
               <p style="color: #606266; font-size: 14px;">缺陷数量：<span style="color: #303133; font-weight: 500;">{{ reviewDefectDetail.data.defect_count || 0 }}</span></p>
-            </div>
-            <div>
-              <p style="color: #606266; font-size: 14px; margin-bottom: 8px;">详细信息：</p>
-              <div style="background: #F5F7FA; padding: 12px; border-radius: 4px; max-height: 150px; overflow-y: auto; word-break: break-all; font-size: 13px; color: #606266;">{{ reviewDefectDetail.data.details || '无' }}</div>
             </div>
           </div>
         </div>
@@ -196,8 +262,29 @@
           <h4 class="mb-3">缺陷详情</h4>
           <el-form :model="defectDetail.data" label-width="120px">
             <el-form-item label="原始图片">
-              <div v-if="defectDetail.data.image_base64" class="image-preview">
-                <img :src="`data:image/${defectDetail.data.image_format};base64,${defectDetail.data.image_base64}`" alt="缺陷图片" class="max-w-xs" />
+              <div v-if="defectDetail.data.image_base64" class="canvas-container" ref="viewCanvasContainer">
+                <img 
+                  :src="`data:image/${defectDetail.data.image_format};base64,${defectDetail.data.image_base64}`" 
+                  alt="缺陷图片" 
+                  class="defect-image"
+                  ref="viewDefectImage"
+                  draggable="false"
+                  @load="onViewImageLoad"
+                />
+                <svg class="overlay-svg" :width="viewOverlayWidth || '100%'" :height="viewOverlayHeight || '100%'" style="position: absolute; top: 0; left: 0;">
+                  <rect 
+                    v-for="(box, index) in viewDrawnBoxes" 
+                    :key="index"
+                    :x="getViewScaledX(box.x)"
+                    :y="getViewScaledY(box.y)"
+                    :width="getViewScaledWidth(box.width)"
+                    :height="getViewScaledHeight(box.height)"
+                    :fill="getDefectColor(box.defect_type_id)"
+                    fill-opacity="0.3"
+                    stroke="red"
+                    stroke-width="2"
+                  />
+                </svg>
               </div>
               <span v-else>-</span>
             </el-form-item>
@@ -218,10 +305,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { reviewService } from '../../services/review'
 import { detectionService } from '../../services/detection'
+import { useDefectTypeStore } from '../../stores/defectType'
 import { formatDateTime } from '../../utils/date'
 
 const loading = ref(false)
@@ -256,6 +344,37 @@ const reviewForm = reactive({
   has_details: true,
   review_comment: ''
 })
+
+const defectTypeStore = useDefectTypeStore()
+const defectTypes = ref([])
+const selectedDefectType = ref('')
+const drawnBoxes = ref([])
+const isDrawing = ref(false)
+const currentBox = reactive({ x: 0, y: 0, width: 0, height: 0 })
+const startPoint = reactive({ x: 0, y: 0 })
+const canvasContainer = ref(null)
+const defectImage = ref(null)
+const overlaySvg = ref(null)
+const overlayWidth = ref(0)
+const overlayHeight = ref(0)
+const scaleX = ref(1)
+const scaleY = ref(1)
+
+const viewDrawnBoxes = ref([])
+const viewOverlayWidth = ref(0)
+const viewOverlayHeight = ref(0)
+const viewScaleX = ref(1)
+const viewScaleY = ref(1)
+const viewCanvasContainer = ref(null)
+const viewDefectImage = ref(null)
+
+const defectColors = {
+  1: '#F56C6C',
+  2: '#E6A23C',
+  3: '#67C23A',
+  4: '#409EFF',
+  5: '#909399'
+}
 
 const viewForm = reactive({
   review_task_id: '',
@@ -335,6 +454,8 @@ const handleCurrentChange = () => {
 const handleReview = async (row) => {
   reviewLoading.value = true
   reviewDefectDetail.data = null
+  drawnBoxes.value = []
+  selectedDefectType.value = ''
   
   try {
     reviewForm.review_task_id = row.review_task_id
@@ -344,11 +465,36 @@ const handleReview = async (row) => {
     reviewForm.has_details = false
     reviewForm.review_comment = ''
     
+    await defectTypeStore.loadDefectTypes()
+    defectTypes.value = defectTypeStore.defectTypes || []
+    
     if (row.defect_details_id) {
       try {
         const defectRes = await detectionService.getDefectDetail(row.defect_details_id)
         reviewDefectDetail.data = defectRes.data
         reviewForm.review_defect_count = defectRes.data?.defect_count || 0
+        
+        if (defectRes.data?.details) {
+          try {
+            const details = typeof defectRes.data.details === 'string' ? JSON.parse(defectRes.data.details) : defectRes.data.details
+            if (Array.isArray(details)) {
+              details.forEach(detail => {
+                if (detail.xyhw && detail.defect_type_id) {
+                  drawnBoxes.value.push({
+                    x: detail.xyhw[0],
+                    y: detail.xyhw[1],
+                    width: detail.xyhw[2],
+                    height: detail.xyhw[3],
+                    defect_type_id: detail.defect_type_id,
+                    conf: detail.conf || 0.9
+                  })
+                }
+              })
+            }
+          } catch (e) {
+            console.error('Parse details failed:', e)
+          }
+        }
       } catch (defectError) {
         console.error('Load defect detail failed:', defectError)
         reviewForm.review_defect_count = row.defect_count || 0
@@ -358,9 +504,159 @@ const handleReview = async (row) => {
     }
     
     showReviewDialog.value = true
+    
+    await nextTick()
+    adjustOverlaySize()
   } finally {
     reviewLoading.value = false
   }
+}
+
+const adjustOverlaySize = () => {
+  if (!defectImage.value) return
+  const imgRect = defectImage.value.getBoundingClientRect()
+  overlayWidth.value = imgRect.width
+  overlayHeight.value = imgRect.height
+  
+  if (defectImage.value.naturalWidth && defectImage.value.naturalHeight) {
+    scaleX.value = imgRect.width / defectImage.value.naturalWidth
+    scaleY.value = imgRect.height / defectImage.value.naturalHeight
+  }
+}
+
+const onImageLoad = () => {
+  nextTick(() => {
+    adjustOverlaySize()
+  })
+}
+
+const onViewImageLoad = () => {
+  nextTick(() => {
+    adjustViewOverlaySize()
+  })
+}
+
+const adjustViewOverlaySize = () => {
+  if (!viewDefectImage.value) return
+  const imgRect = viewDefectImage.value.getBoundingClientRect()
+  viewOverlayWidth.value = imgRect.width
+  viewOverlayHeight.value = imgRect.height
+  
+  if (viewDefectImage.value.naturalWidth && viewDefectImage.value.naturalHeight) {
+    viewScaleX.value = imgRect.width / viewDefectImage.value.naturalWidth
+    viewScaleY.value = imgRect.height / viewDefectImage.value.naturalHeight
+  }
+}
+
+const getViewScaledX = (x) => {
+  return x * viewScaleX.value
+}
+
+const getViewScaledY = (y) => {
+  return y * viewScaleY.value
+}
+
+const getViewScaledWidth = (width) => {
+  return width * viewScaleX.value
+}
+
+const getViewScaledHeight = (height) => {
+  return height * viewScaleY.value
+}
+
+const getScaledX = (x) => {
+  return x * scaleX.value
+}
+
+const getScaledY = (y) => {
+  return y * scaleY.value
+}
+
+const getScaledWidth = (width) => {
+  return width * scaleX.value
+}
+
+const getScaledHeight = (height) => {
+  return height * scaleY.value
+}
+
+const getDefectColor = (defectTypeId) => {
+  return defectColors[defectTypeId] || '#F56C6C'
+}
+
+const getDefectTypeName = (defectTypeId) => {
+  const type = defectTypes.value.find(t => t.defect_type_id === defectTypeId)
+  return type?.defect_type_name || `未知(${defectTypeId})`
+}
+
+const startDraw = (e) => {
+  if (!reviewForm.has_details) return
+  if (!selectedDefectType.value) {
+    ElMessage.warning('请先选择缺陷类型')
+    return
+  }
+  
+  isDrawing.value = true
+  const rect = canvasContainer.value.getBoundingClientRect()
+  const imgRect = defectImage.value.getBoundingClientRect()
+  const scaleX = defectImage.value.naturalWidth / imgRect.width
+  const scaleY = defectImage.value.naturalHeight / imgRect.height
+  
+  startPoint.x = (e.clientX - rect.left) * scaleX
+  startPoint.y = (e.clientY - rect.top) * scaleY
+  
+  currentBox.x = startPoint.x
+  currentBox.y = startPoint.y
+  currentBox.width = 0
+  currentBox.height = 0
+}
+
+const drawing = (e) => {
+  if (!isDrawing.value) return
+  
+  const rect = canvasContainer.value.getBoundingClientRect()
+  const imgRect = defectImage.value.getBoundingClientRect()
+  const scaleX = defectImage.value.naturalWidth / imgRect.width
+  const scaleY = defectImage.value.naturalHeight / imgRect.height
+  
+  const currentX = (e.clientX - rect.left) * scaleX
+  const currentY = (e.clientY - rect.top) * scaleY
+  
+  currentBox.x = Math.min(startPoint.x, currentX)
+  currentBox.y = Math.min(startPoint.y, currentY)
+  currentBox.width = Math.abs(currentX - startPoint.x)
+  currentBox.height = Math.abs(currentY - startPoint.y)
+}
+
+const endDraw = () => {
+  if (!isDrawing.value) return
+  
+  isDrawing.value = false
+  
+  if (currentBox.width > 5 && currentBox.height > 5) {
+    drawnBoxes.value.push({
+      x: currentBox.x,
+      y: currentBox.y,
+      width: currentBox.width,
+      height: currentBox.height,
+      defect_type_id: selectedDefectType.value,
+      conf: 0.9
+    })
+    reviewForm.review_defect_count = drawnBoxes.value.length
+  }
+  
+  currentBox.width = 0
+  currentBox.height = 0
+}
+
+const removeBox = (index) => {
+  drawnBoxes.value.splice(index, 1)
+  reviewForm.review_defect_count = drawnBoxes.value.length
+}
+
+const clearAllBoxes = () => {
+  drawnBoxes.value = []
+  reviewForm.review_defect_count = 0
 }
 
 const handleReject = (row) => {
@@ -374,18 +670,30 @@ const handleReject = (row) => {
 const handleSubmitReview = async () => {
   submitLoading.value = true
   try {
-    await reviewService.update(reviewForm.review_task_id, {
+    const updateData = {
       review_status: 'completed',
       review_result: reviewForm.review_result,
       review_defect_count: reviewForm.review_defect_count,
       has_details: reviewForm.has_details,
       review_comment: reviewForm.review_comment || undefined
-    })
+    }
+    
+    if (reviewForm.has_details && drawnBoxes.value.length > 0) {
+      updateData.review_details = drawnBoxes.value.map(box => ({
+        defect_type_id: box.defect_type_id,
+        xyhw: [box.x, box.y, box.width, box.height],
+        conf: box.conf || 0.9
+      }))
+    }
+    
+    await reviewService.update(reviewForm.review_task_id, updateData)
     ElMessage.success('审查提交成功')
     showReviewDialog.value = false
+    drawnBoxes.value = []
     loadData()
   } catch (error) {
     console.error('Submit review failed:', error)
+    ElMessage.error('提交审查失败')
   } finally {
     submitLoading.value = false
   }
@@ -394,6 +702,7 @@ const handleSubmitReview = async () => {
 const handleView = async (row) => {
   viewLoading.value = true
   defectDetail.data = null
+  viewDrawnBoxes.value = []
   
   try {
     const res = await reviewService.getById(row.review_task_id)
@@ -417,6 +726,28 @@ const handleView = async (row) => {
       try {
         const defectRes = await detectionService.getDefectDetail(data.defect_details_id)
         defectDetail.data = defectRes.data
+        
+        if (defectRes.data?.details) {
+          try {
+            const details = typeof defectRes.data.details === 'string' ? JSON.parse(defectRes.data.details) : defectRes.data.details
+            if (Array.isArray(details)) {
+              details.forEach(detail => {
+                if (detail.xyhw && detail.defect_type_id) {
+                  viewDrawnBoxes.value.push({
+                    x: detail.xyhw[0],
+                    y: detail.xyhw[1],
+                    width: detail.xyhw[2],
+                    height: detail.xyhw[3],
+                    defect_type_id: detail.defect_type_id,
+                    conf: detail.conf || 0.9
+                  })
+                }
+              })
+            }
+          } catch (e) {
+            console.error('Parse details failed:', e)
+          }
+        }
       } catch (defectError) {
         console.error('Load defect detail failed:', defectError)
       }
@@ -455,6 +786,42 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 20px;
+}
+
+.canvas-container {
+  position: relative;
+  display: inline-block;
+  cursor: crosshair;
+  border: 1px solid #DCDFE6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.defect-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.overlay-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.drawn-box {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.defect-item {
+  padding: 4px 0;
+  border-bottom: 1px solid #EBEEF5;
+}
+
+.defect-item:last-child {
+  border-bottom: none;
 }
 
 .card-header {
