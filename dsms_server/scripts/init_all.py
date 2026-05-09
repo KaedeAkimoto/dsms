@@ -3,23 +3,20 @@
 数据库初始化脚本
 
 功能说明:
-    - clear: 清空数据库所有数据
-    - init: 初始化所有基础数据（职称、部门、缺陷类型）
-    - init-roles: 初始化系统角色
-    - init-admin: 创建超级管理员
-    - all: 执行完整初始化（清空+初始化+角色+管理员）
+    - build: 从模型创建所有数据库表
+    - clear: 清空数据库所有数据（保留表结构）
+    - seed: 填充基础数据（职称、部门、缺陷类型、角色、管理员）
+    - all: 执行完整初始化（建表+填充数据）
 
 使用示例:
-    python init_all.py clear      # 清空数据库
-    python init_all.py init       # 初始化基础数据
-    python init_all.py init-roles # 初始化角色
-    python init_all.py init-admin # 创建管理员
-    python init_all.py all        # 完整初始化（推荐）
+    python init_all.py build    # 创建所有表
+    python init_all.py clear    # 清空数据
+    python init_all.py seed     # 填充基础数据
+    python init_all.py all      # 完整初始化（建表+数据）
 
 注意:
     1. 确保已正确配置 config.toml 中的数据库连接信息
     2. 运行前确保 PostgreSQL 服务已启动
-    3. 完整初始化会清空所有数据，请谨慎操作
 """
 
 import sys
@@ -31,9 +28,14 @@ from uuid import uuid4
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config.database import db_config
-from app.models import Title, Department, DefectType, Role, User
+from app.models import (
+    Title, Department, DefectType, Role, User,
+    ProductionLine, Device, DeviceApproval, DeviceStatusHistory,
+    DetectionRecord, DefectDetail, ReviewTask,
+    UserOperationLog, UserMessage, SystemMessage, Announcement, AnnouncementReader
+)
 from app.core.system_roles import get_all_system_roles, get_default_permissions, SystemRole
-from sqlmodel import select
+from sqlmodel import SQLModel, select
 from sqlalchemy import text
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -81,8 +83,29 @@ class DatabaseInitializer:
     ADMIN_EMAIL = "admin@example.com"
     ADMIN_PHONE = "13800138000"
 
+    TABLE_ORDER_BY_DEPENDENCY = [
+        "titles",
+        "departments",
+        "roles",
+        "users",
+        "defect_types",
+        "production_lines",
+        "device_approvals",
+        "devices",
+        "device_status_history",
+        "detection_records",
+        "defect_details",
+        "review_tasks",
+        "user_operation_logs",
+        "user_messages",
+        "system_messages",
+        "announcements",
+        "announcement_readers",
+    ]
+
     def __init__(self):
         db_config.init_db()
+        self.debug_images_path = Path(__file__).parent.parent / "debug" / "images"
 
     def get_all_table_names(self):
         """获取所有表名"""
@@ -90,29 +113,67 @@ class DatabaseInitializer:
             result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
             return [row[0] for row in result]
 
+    def build_tables(self):
+        """从模型创建所有数据库表"""
+        logger.info("=" * 50)
+        logger.info("开始创建数据库表...")
+        logger.info("=" * 50)
+
+        SQLModel.metadata.create_all(db_config.engine)
+        logger.info("所有表创建完成!")
+
+        logger.info("=" * 50)
+        logger.info("数据库表创建完成!")
+        logger.info("=" * 50)
+
+    def drop_all_tables(self):
+        """删除所有表"""
+        logger.info("=" * 50)
+        logger.info("开始删除所有表...")
+        logger.info("=" * 50)
+
+        with db_config.engine.connect() as conn:
+            conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
+            for table_name in reversed(self.TABLE_ORDER_BY_DEPENDENCY):
+                try:
+                    conn.execute(text(f"DROP TABLE IF EXISTS {table_name} CASCADE"))
+                    logger.info(f"  已删除表: {table_name}")
+                except Exception as e:
+                    logger.warning(f"  删除表 {table_name} 失败: {e}")
+            conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
+            conn.commit()
+
+        logger.info("=" * 50)
+        logger.info("所有表删除完成!")
+        logger.info("=" * 50)
+
     def clear_database(self):
-        """清空数据库所有数据"""
+        """清空数据库所有数据（保留表结构）"""
         logger.info("=" * 50)
         logger.info("开始清空数据库...")
         logger.info("=" * 50)
 
-        for table_name in self.get_all_table_names():
-            with db_config.engine.connect() as conn:
-                conn.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))
-            logger.info(f"  已清空表: {table_name}")
+        with db_config.engine.connect() as conn:
+            for table_name in reversed(self.TABLE_ORDER_BY_DEPENDENCY):
+                try:
+                    conn.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))
+                    logger.info(f"  已清空表: {table_name}")
+                except Exception as e:
+                    logger.warning(f"  清空表 {table_name} 失败: {e}")
+            conn.commit()
 
         logger.info("=" * 50)
         logger.info("数据库清空完成!")
         logger.info("=" * 50)
 
-    def init_base_data(self):
-        """初始化基础数据（职称、部门、缺陷类型）"""
+    def seed_base_data(self):
+        """填充基础数据（职称、部门、缺陷类型）"""
         logger.info("=" * 50)
-        logger.info("开始初始化基础数据...")
+        logger.info("开始填充基础数据...")
         logger.info("=" * 50)
 
         with db_config.get_session() as session:
-            logger.info("初始化职称数据...")
+            logger.info("[1/3] 填充职称数据...")
             for title_data in self.DEFAULT_TITLES:
                 result = session.execute(select(Title).where(Title.title_id == title_data["title_id"]))
                 existing = result.scalar_one_or_none()
@@ -123,8 +184,9 @@ class DatabaseInitializer:
                     title = Title(title_id=title_data["title_id"], title_name=title_data["title_name"])
                     session.add(title)
                     logger.info(f"  创建职称: {title_data['title_name']}")
+            session.commit()
 
-            logger.info("初始化部门数据...")
+            logger.info("[2/3] 填充部门数据...")
             for dept_data in self.DEFAULT_DEPARTMENTS:
                 result = session.execute(select(Department).where(Department.department_id == dept_data["department_id"]))
                 existing = result.scalar_one_or_none()
@@ -142,8 +204,9 @@ class DatabaseInitializer:
                     )
                     session.add(dept)
                     logger.info(f"  创建部门: {dept_data['department_name']}")
+            session.commit()
 
-            logger.info("初始化缺陷类型数据...")
+            logger.info("[3/3] 填充缺陷类型数据...")
             for defect_data in self.DEFAULT_DEFECT_TYPES:
                 result = session.execute(select(DefectType).where(DefectType.defect_type_id == defect_data["defect_type_id"]))
                 existing = result.scalar_one_or_none()
@@ -157,17 +220,16 @@ class DatabaseInitializer:
                     )
                     session.add(defect)
                     logger.info(f"  创建缺陷类型: {defect_data['defect_type_name']}")
-
             session.commit()
 
         logger.info("=" * 50)
-        logger.info("基础数据初始化完成!")
+        logger.info("基础数据填充完成!")
         logger.info("=" * 50)
 
-    def init_system_roles(self):
-        """初始化系统角色"""
+    def seed_system_roles(self):
+        """填充系统角色"""
         logger.info("=" * 50)
-        logger.info("开始初始化系统角色...")
+        logger.info("开始填充系统角色...")
         logger.info("=" * 50)
 
         with db_config.get_session() as session:
@@ -215,7 +277,7 @@ class DatabaseInitializer:
             session.commit()
 
         logger.info("=" * 50)
-        logger.info("系统角色初始化完成!")
+        logger.info("系统角色填充完成!")
         logger.info("=" * 50)
 
     def create_super_admin(self):
@@ -230,12 +292,12 @@ class DatabaseInitializer:
             ).scalar_one_or_none()
 
             if not super_role:
-                logger.error("超级管理员角色不存在，请先运行 init-roles")
+                logger.error("超级管理员角色不存在，请先运行 seed 或 seed-roles")
                 return False
 
             first_title = session.execute(select(Title)).scalars().first()
             if not first_title:
-                logger.error("职称数据不存在，请先运行 init")
+                logger.error("职称数据不存在，请先运行 seed")
                 return False
 
             existing_user = session.execute(select(User).where(User.user_name == self.ADMIN_USERNAME)).scalar_one_or_none()
@@ -276,38 +338,41 @@ class DatabaseInitializer:
         logger.info("=" * 50)
         return True
 
+    def seed_all(self):
+        """填充所有基础数据（职称、部门、缺陷类型、角色、管理员）"""
+        self.seed_base_data()
+        self.seed_system_roles()
+        self.create_super_admin()
+
 
 def main():
     """主函数"""
     if len(sys.argv) < 2:
         print(__doc__)
         print("\n可用命令:")
-        print("  clear      - 清空数据库所有数据")
-        print("  init       - 初始化基础数据（职称、部门、缺陷类型）")
-        print("  init-roles - 初始化系统角色")
-        print("  init-admin - 创建超级管理员")
-        print("  all        - 完整初始化（清空+初始化+角色+管理员）")
+        print("  build   - 从模型创建所有数据库表")
+        print("  clear   - 清空数据库所有数据（保留表结构）")
+        print("  seed    - 填充基础数据（职称、部门、缺陷类型、角色、管理员）")
+        print("  all     - 完整初始化（删除所有表+建表+填充数据）")
         return
 
     initializer = DatabaseInitializer()
     command = sys.argv[1].lower()
 
-    if command == "clear":
+    if command == "build":
+        initializer.build_tables()
+    elif command == "clear":
         initializer.clear_database()
-    elif command == "init":
-        initializer.init_base_data()
-    elif command == "init-roles":
-        initializer.init_system_roles()
-    elif command == "init-admin":
-        initializer.create_super_admin()
+    elif command == "seed":
+        initializer.seed_all()
     elif command == "all":
-        initializer.clear_database()
-        initializer.init_base_data()
-        initializer.init_system_roles()
-        initializer.create_super_admin()
+        initializer.drop_all_tables()
+        initializer.build_tables()
+        initializer.seed_all()
         print("\n" + "=" * 50)
         print("数据库完整初始化完成!")
         print("默认管理员账号: admin / admin123")
+        print("缺陷图片路径: debug/images/")
         print("=" * 50)
     else:
         print(f"未知命令: {command}")
