@@ -5,13 +5,13 @@
 功能说明:
     - build: 从模型创建所有数据库表
     - clear: 清空数据库所有数据（保留表结构）
-    - seed: 填充基础数据（职称、部门、缺陷类型、角色、管理员）
+    - seed: 填充所有数据（基础数据+用户+设备+检测记录等）
     - all: 执行完整初始化（建表+填充数据）
 
 使用示例:
     python init_all.py build    # 创建所有表
     python init_all.py clear    # 清空数据
-    python init_all.py seed     # 填充基础数据
+    python init_all.py seed     # 填充所有数据
     python init_all.py all      # 完整初始化（建表+数据）
 
 注意:
@@ -22,6 +22,9 @@
 import sys
 import bcrypt
 import logging
+import random
+import base64
+from datetime import datetime, timedelta, timezone, date
 from pathlib import Path
 from uuid import uuid4
 
@@ -106,6 +109,24 @@ class DatabaseInitializer:
     def __init__(self):
         db_config.init_db()
         self.debug_images_path = Path(__file__).parent.parent / "debug" / "images"
+        self._user_cache = {}
+        self._device_cache = {}
+        self._line_cache = {}
+
+    def _hash_password(self, password: str) -> str:
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    def _load_image_base64(self, filename: str) -> bytes:
+        img_path = self.debug_images_path / filename
+        if img_path.exists():
+            with open(img_path, 'rb') as f:
+                return f.read()
+        return b''
+
+    def _generate_batch_id(self, base_time: datetime) -> str:
+        gap = 10
+        minute_slot = (base_time.minute // gap) + 1
+        return f"BTH{base_time.year}{base_time.month:02d}{base_time.day:02d}{base_time.hour:02d}{minute_slot}"
 
     def get_all_table_names(self):
         """获取所有表名"""
@@ -177,11 +198,10 @@ class DatabaseInitializer:
                 existing = result.scalar_one_or_none()
                 if existing:
                     existing.title_name = title_data["title_name"]
-                    logger.info(f"  更新职称: {title_data['title_name']}")
                 else:
                     title = Title(title_id=title_data["title_id"], title_name=title_data["title_name"])
                     session.add(title)
-                    logger.info(f"  创建职称: {title_data['title_name']}")
+                logger.info(f"  职称: {title_data['title_name']}")
             session.commit()
 
             logger.info("[2/3] 填充部门数据...")
@@ -192,7 +212,6 @@ class DatabaseInitializer:
                     existing.department_code = dept_data["department_code"]
                     existing.department_name = dept_data["department_name"]
                     existing.parent_id = dept_data["parent_id"]
-                    logger.info(f"  更新部门: {dept_data['department_name']}")
                 else:
                     dept = Department(
                         department_id=dept_data["department_id"],
@@ -201,7 +220,7 @@ class DatabaseInitializer:
                         parent_id=dept_data["parent_id"]
                     )
                     session.add(dept)
-                    logger.info(f"  创建部门: {dept_data['department_name']}")
+                logger.info(f"  部门: {dept_data['department_name']}")
             session.commit()
 
             logger.info("[3/3] 填充缺陷类型数据...")
@@ -210,19 +229,16 @@ class DatabaseInitializer:
                 existing = result.scalar_one_or_none()
                 if existing:
                     existing.defect_type_name = defect_data["defect_type_name"]
-                    logger.info(f"  更新缺陷类型: {defect_data['defect_type_name']}")
                 else:
                     defect = DefectType(
                         defect_type_id=defect_data["defect_type_id"],
                         defect_type_name=defect_data["defect_type_name"]
                     )
                     session.add(defect)
-                    logger.info(f"  创建缺陷类型: {defect_data['defect_type_name']}")
+                logger.info(f"  缺陷类型: {defect_data['defect_type_name']}")
             session.commit()
 
-        logger.info("=" * 50)
         logger.info("基础数据填充完成!")
-        logger.info("=" * 50)
 
     def seed_system_roles(self):
         """填充系统角色"""
@@ -234,9 +250,7 @@ class DatabaseInitializer:
             existing_roles = session.execute(select(Role).where(Role.is_system_role == True)).scalars().all()
 
             if existing_roles:
-                logger.info(f"发现 {len(existing_roles)} 个现有系统角色，正在清空...")
                 old_role_ids = [r.role_id for r in existing_roles]
-
                 temp_role_name = f"_temp_role_{uuid4().hex[:8]}"
                 temp_role = Role(
                     role_name=temp_role_name,
@@ -249,98 +263,372 @@ class DatabaseInitializer:
                 temp_role_id = temp_role.role_id
 
                 for old_id in old_role_ids:
-                    session.execute(
-                        text("UPDATE users SET role_id = :new_id WHERE role_id = :old_id"),
-                        {"new_id": temp_role_id, "old_id": old_id}
-                    )
+                    session.execute(text("UPDATE users SET role_id = :new_id WHERE role_id = :old_id"),
+                                   {"new_id": temp_role_id, "old_id": old_id})
 
                 for old_role in existing_roles:
                     session.delete(old_role)
-
                 session.commit()
-                logger.info(f"已清空 {len(existing_roles)} 个系统角色")
 
-            logger.info("插入系统角色...")
             for role_info in get_all_system_roles():
-                role_name = role_info["role_name"]
                 role = Role(
-                    role_name=role_name,
+                    role_name=role_info["role_name"],
                     desc=role_info["description"],
                     is_system_role=True,
                     permissions=get_default_permissions(role_info["role_key"])
                 )
                 session.add(role)
-                logger.info(f"  创建角色: {role_name}")
-
+                logger.info(f"  角色: {role_info['role_name']}")
             session.commit()
 
-        logger.info("=" * 50)
         logger.info("系统角色填充完成!")
-        logger.info("=" * 50)
 
-    def create_super_admin(self):
-        """创建超级管理员"""
+    def seed_users(self):
+        """填充普通用户"""
         logger.info("=" * 50)
-        logger.info("开始创建超级管理员...")
+        logger.info("开始填充用户数据...")
         logger.info("=" * 50)
 
         with db_config.get_session() as session:
-            super_role = session.execute(
-                select(Role).where(Role.role_name == SystemRole.ROLE_NAMES[SystemRole.SUPER_SYS_ADMIN])
-            ).scalar_one_or_none()
+            super_role = session.execute(select(Role).where(
+                Role.role_name == SystemRole.ROLE_NAMES[SystemRole.SUPER_SYS_ADMIN]
+            )).scalar_one_or_none()
 
-            if not super_role:
-                logger.error("超级管理员角色不存在，请先运行 seed 或 seed-roles")
-                return False
+            qa_role = session.execute(select(Role).where(
+                Role.role_name == SystemRole.ROLE_NAMES[SystemRole.QA_INSPECTOR]
+            )).scalar_one_or_none()
 
-            first_title = session.execute(select(Title)).scalars().first()
-            if not first_title:
-                logger.error("职称数据不存在，请先运行 seed")
-                return False
+            operator_role = session.execute(select(Role).where(
+                Role.role_name == SystemRole.ROLE_NAMES[SystemRole.PRODUCTION_OPERATOR]
+            )).scalar_one_or_none()
 
-            existing_user = session.execute(select(User).where(User.user_name == self.ADMIN_USERNAME)).scalar_one_or_none()
+            users_data = [
+                {"user_name": "admin", "real_name": "超级管理员", "email": "admin@example.com",
+                 "phone": "13800138000", "role_id": super_role.role_id, "title_id": 9, "department_id": 1},
+                {"user_name": "zhangsan", "real_name": "张三", "email": "zhangsan@example.com",
+                 "phone": "13800138001", "role_id": qa_role.role_id if qa_role else super_role.role_id,
+                 "title_id": 2, "department_id": 6},
+                {"user_name": "lisi", "real_name": "李四", "email": "lisi@example.com",
+                 "phone": "13800138002", "role_id": operator_role.role_id if operator_role else super_role.role_id,
+                 "title_id": 3, "department_id": 5},
+                {"user_name": "wangwu", "real_name": "王五", "email": "wangwu@example.com",
+                 "phone": "13800138003", "role_id": qa_role.role_id if qa_role else super_role.role_id,
+                 "title_id": 2, "department_id": 6},
+                {"user_name": "zhaoliu", "real_name": "赵六", "email": "zhaoliu@example.com",
+                 "phone": "13800138004", "role_id": operator_role.role_id if operator_role else super_role.role_id,
+                 "title_id": 4, "department_id": 5},
+            ]
 
-            if existing_user:
-                logger.warning(f"用户 '{self.ADMIN_USERNAME}' 已存在，正在更新...")
-                existing_user.password_hash = bcrypt.hashpw(
-                    self.ADMIN_PASSWORD.encode('utf-8'), bcrypt.gensalt()
-                ).decode('utf-8')
-                existing_user.real_name = self.ADMIN_REAL_NAME
-                existing_user.email = self.ADMIN_EMAIL
-                existing_user.phone = self.ADMIN_PHONE
-                existing_user.role_id = super_role.role_id
-                existing_user.title_id = 9
-                session.commit()
-                logger.info(f"已更新用户: {self.ADMIN_USERNAME}")
-            else:
-                user = User(
-                    user_id=uuid4(),
-                    user_name=self.ADMIN_USERNAME,
-                    password_hash=bcrypt.hashpw(
-                        self.ADMIN_PASSWORD.encode('utf-8'), bcrypt.gensalt()
-                    ).decode('utf-8'),
-                    real_name=self.ADMIN_REAL_NAME,
-                    email=self.ADMIN_EMAIL,
-                    phone=self.ADMIN_PHONE,
-                    role_id=super_role.role_id,
-                    title_id=9
+            for user_data in users_data:
+                existing = session.execute(select(User).where(User.user_name == user_data["user_name"])).scalar_one_or_none()
+                if existing:
+                    self._user_cache[user_data["user_name"]] = existing.user_id
+                    logger.info(f"  用户已存在: {user_data['real_name']}")
+                else:
+                    user = User(
+                        user_id=uuid4(),
+                        user_name=user_data["user_name"],
+                        password_hash=self._hash_password("password123"),
+                        real_name=user_data["real_name"],
+                        email=user_data["email"],
+                        phone=user_data["phone"],
+                        role_id=user_data["role_id"],
+                        title_id=user_data["title_id"],
+                        department_id=user_data["department_id"]
+                    )
+                    session.add(user)
+                    session.flush()
+                    self._user_cache[user_data["user_name"]] = user.user_id
+                    logger.info(f"  创建用户: {user_data['real_name']} ({user_data['user_name']})")
+            session.commit()
+
+        logger.info("用户数据填充完成!")
+
+    def seed_production_lines(self):
+        """填充生产线"""
+        logger.info("=" * 50)
+        logger.info("开始填充生产线数据...")
+        logger.info("=" * 50)
+
+        with db_config.get_session() as session:
+            lines_data = [
+                {"production_line_name": "A线-主机装配", "production_line_loc": "工厂A区1楼"},
+                {"production_line_name": "B线-辅机装配", "production_line_loc": "工厂A区2楼"},
+                {"production_line_name": "C线-测试", "production_line_loc": "工厂B区1楼"},
+                {"production_line_name": "D线-包装", "production_line_loc": "工厂B区2楼"},
+            ]
+
+            for i, line_data in enumerate(lines_data):
+                line = ProductionLine(
+                    production_line_id=uuid4(),
+                    production_line_name=line_data["production_line_name"],
+                    production_line_loc=line_data["production_line_loc"],
+                    production_line_manager=self._user_cache.get("zhangsan")
                 )
-                session.add(user)
-                session.commit()
-                logger.info(f"超级管理员创建成功!")
-                logger.info(f"  用户名: {self.ADMIN_USERNAME}")
-                logger.info(f"  密码: {self.ADMIN_PASSWORD}")
+                session.add(line)
+                session.flush()
+                self._line_cache[line_data["production_line_name"]] = line.production_line_id
+                logger.info(f"  创建生产线: {line_data['production_line_name']}")
+            session.commit()
 
+        logger.info("生产线数据填充完成!")
+
+    def seed_devices(self):
+        """填充设备"""
         logger.info("=" * 50)
-        logger.info("超级管理员创建完成!")
+        logger.info("开始填充设备数据...")
         logger.info("=" * 50)
-        return True
+
+        with db_config.get_session() as session:
+            devices_data = [
+                {"device_name": "视觉检测相机-A1", "device_type": "工业相机", "line_name": "A线-主机装配"},
+                {"device_name": "视觉检测相机-A2", "device_type": "工业相机", "line_name": "A线-主机装配"},
+                {"device_name": "视觉检测相机-B1", "device_type": "工业相机", "line_name": "B线-辅机装配"},
+                {"device_name": "视觉检测相机-C1", "device_type": "工业相机", "line_name": "C线-测试"},
+                {"device_name": "视觉检测相机-C2", "device_type": "工业相机", "line_name": "C线-测试"},
+            ]
+
+            for dev_data in devices_data:
+                device = Device(
+                    device_id=uuid4(),
+                    device_name=dev_data["device_name"],
+                    device_type=dev_data["device_type"],
+                    production_line_id=self._line_cache[dev_data["line_name"]],
+                    device_manager=self._user_cache.get("zhangsan"),
+                    status="active",
+                    ip_addr=f"192.168.1.{random.randint(10, 250)}",
+                    mac_addr=f"00:1B:44:11:{random.randint(10, 99)}:{random.randint(10, 99)}",
+                    installation_date=date(2024, random.randint(1, 12), random.randint(1, 28))
+                )
+                session.add(device)
+                session.flush()
+                self._device_cache[dev_data["device_name"]] = device.device_id
+                logger.info(f"  创建设备: {dev_data['device_name']}")
+            session.commit()
+
+        logger.info("设备数据填充完成!")
+
+    def seed_device_history(self):
+        """填充设备历史状态"""
+        logger.info("=" * 50)
+        logger.info("开始填充设备历史数据...")
+        logger.info("=" * 50)
+
+        with db_config.get_session() as session:
+            device_names = list(self._device_cache.keys())
+            now = datetime.now(timezone.utc)
+
+            for device_name in device_names[:3]:
+                device_id = self._device_cache[device_name]
+                for hours_ago in range(24, 0, -1):
+                    record_time = now - timedelta(hours=hours_ago)
+                    history = DeviceStatusHistory(
+                        history_id=uuid4(),
+                        device_id=device_id,
+                        status="active" if random.random() > 0.05 else "maintenance",
+                        cpu_usage=round(random.uniform(20, 80), 2),
+                        memory_usage=round(random.uniform(30, 70), 2),
+                        network_latency=random.randint(1, 50),
+                        created_at=record_time
+                    )
+                    session.add(history)
+            session.commit()
+            logger.info(f"  创建了 24*3=72 条设备历史记录")
+
+        logger.info("设备历史数据填充完成!")
+
+    def seed_detection_records(self):
+        """填充检测记录和缺陷详情"""
+        logger.info("=" * 50)
+        logger.info("开始填充检测记录和缺陷详情...")
+        logger.info("=" * 50)
+
+        defect_images = [
+            "sample_000_original.jpg", "sample_001_original.jpg", "sample_002_original.jpg",
+            "sample_003_original.jpg", "sample_004_original.jpg", "sample_005_original.jpg",
+            "sample_006_original.jpg", "sample_007_original.jpg", "sample_008_original.jpg",
+            "sample_009_original.jpg", "sample_010_original.jpg", "sample_011_original.jpg",
+            "sample_012_original.jpg", "sample_013_original.jpg", "sample_014_original.jpg",
+            "sample_015_original.jpg", "sample_016_original.jpg", "sample_017_original.jpg",
+            "sample_018_original.jpg", "sample_019_original.jpg",
+        ]
+
+        device_names = list(self._device_cache.keys())
+        now = datetime.now(timezone.utc)
+        batch_count = 0
+        defect_count = 0
+
+        with db_config.get_session() as session:
+            for day_offset in range(7, 0, -1):
+                for hour in range(8, 18):
+                    for minute_slot in range(6):
+                        base_time = now - timedelta(days=day_offset, hours=18-hour, minutes=minute_slot*10)
+                        batch_id = self._generate_batch_id(base_time)
+
+                        device_name = random.choice(device_names)
+                        device_id = self._device_cache[device_name]
+
+                        total_count = random.randint(50, 200)
+                        pass_count = int(total_count * random.uniform(0.85, 0.98))
+
+                        has_defect = random.random() > 0.6
+                        detect_info = []
+                        if has_defect:
+                            defect_type_id = random.randint(1, 6)
+                            defect_type_count = random.randint(1, 5)
+                            detect_info.append({
+                                "defect_type_id": defect_type_id,
+                                "defect_count": defect_type_count
+                            })
+
+                        record = DetectionRecord(
+                            record_batch_id=batch_id,
+                            device_id=device_id,
+                            detect_count=total_count,
+                            pass_count=pass_count,
+                            detect_info=detect_info,
+                            latest_upload_at=base_time
+                        )
+                        session.add(record)
+                        session.flush()
+                        batch_count += 1
+
+                        if has_defect and detect_info:
+                            img_filename = random.choice(defect_images)
+                            img_data = self._load_image_base64(img_filename)
+
+                            if img_data:
+                                for _ in range(random.randint(1, 3)):
+                                    defect_record = DefectDetail(
+                                        defect_details_id=uuid4(),
+                                        record_batch_id=batch_id,
+                                        image=img_data,
+                                        image_format="jpeg",
+                                        defect_count=random.randint(1, 5),
+                                        details=[{
+                                            "defect_type_id": detect_info[0]["defect_type_id"],
+                                            "xyhw": (random.randint(100, 500), random.randint(100, 500),
+                                                    random.randint(50, 200), random.randint(50, 200)),
+                                            "conf": round(random.uniform(0.5, 0.99), 3)
+                                        }]
+                                    )
+                                    session.add(defect_record)
+                                    defect_count += 1
+                        session.commit()
+
+        logger.info(f"  创建了 {batch_count} 条检测记录")
+        logger.info(f"  创建了 {defect_count} 条缺陷详情记录")
+        logger.info("检测记录和缺陷详情填充完成!")
+
+    def seed_messages(self):
+        """填充用户消息和系统消息"""
+        logger.info("=" * 50)
+        logger.info("开始填充消息数据...")
+        logger.info("=" * 50)
+
+        usernames = [k for k in self._user_cache.keys() if k != "admin"]
+        now = datetime.now(timezone.utc)
+
+        with db_config.get_session() as session:
+            msg_count = 0
+            for i in range(20):
+                send_user = self._user_cache.get(random.choice(usernames))
+                receive_user = self._user_cache.get(random.choice(usernames))
+                if send_user and receive_user and send_user != receive_user:
+                    msg = UserMessage(
+                        msg_id=uuid4(),
+                        send_user=send_user,
+                        receive_user=receive_user,
+                        content=f"这是一条测试消息 #{i+1}",
+                        created_at=now - timedelta(hours=random.randint(1, 168)),
+                        status="read" if random.random() > 0.3 else "unread",
+                        readed_at=now - timedelta(hours=random.randint(0, 24)) if random.random() > 0.3 else None
+                    )
+                    session.add(msg)
+                    msg_count += 1
+            session.commit()
+
+            sys_msg_count = 0
+            for username in usernames:
+                user_id = self._user_cache.get(username)
+                if user_id:
+                    for i in range(3):
+                        sys_msg = SystemMessage(
+                            msg_id=uuid4(),
+                            receive_user=user_id,
+                            content=f"系统通知 #{i+1}: 您的设备检测任务已分配",
+                            created_at=now - timedelta(days=random.randint(1, 7)),
+                            status="read" if random.random() > 0.5 else "unread"
+                        )
+                        session.add(sys_msg)
+                        sys_msg_count += 1
+            session.commit()
+
+        logger.info(f"  创建了 {msg_count} 条用户消息")
+        logger.info(f"  创建了 {sys_msg_count} 条系统消息")
+        logger.info("消息数据填充完成!")
+
+    def seed_announcements(self):
+        """填充公告"""
+        logger.info("=" * 50)
+        logger.info("开始填充公告数据...")
+        logger.info("=" * 50)
+
+        admin_id = self._user_cache.get("admin")
+        now = datetime.now(timezone.utc)
+
+        with db_config.get_session() as session:
+            announcements_data = [
+                {"content": "【系统通知】本周六将进行系统维护，请提前做好数据备份。", "receiver_type": "all"},
+                {"content": "【质量部通知】关于2024年度质量管理体系内审的通知", "receiver_type": "department", "receive_target": 6},
+                {"content": "【IT部通知】新版本检测系统已上线，请各部门知悉。", "receiver_type": "department", "receive_target": 2},
+            ]
+
+            for ann_data in announcements_data:
+                announcement = Announcement(
+                    announcement_id=uuid4(),
+                    receiver_type=ann_data["receiver_type"],
+                    receive_target=ann_data.get("receive_target"),
+                    content=ann_data["content"],
+                    created_at=now - timedelta(days=random.randint(1, 30)),
+                    send_user=admin_id,
+                    expired=now + timedelta(days=random.randint(30, 90))
+                )
+                session.add(announcement)
+                session.flush()
+
+                for user_id in list(self._user_cache.values()):
+                    if random.random() > 0.3:
+                        reader = AnnouncementReader(
+                            announcement_id=announcement.announcement_id,
+                            user_id=user_id,
+                            readed_at=now - timedelta(days=random.randint(0, 15))
+                        )
+                        session.add(reader)
+            session.commit()
+
+        logger.info(f"  创建了 {len(announcements_data)} 条公告")
+        logger.info("公告数据填充完成!")
 
     def seed_all(self):
-        """填充所有基础数据（职称、部门、缺陷类型、角色、管理员）"""
+        """填充所有数据"""
+        logger.info("=" * 60)
+        logger.info("开始填充所有数据...")
+        logger.info("=" * 60)
+
         self.seed_base_data()
         self.seed_system_roles()
-        self.create_super_admin()
+        self.seed_users()
+        self.seed_production_lines()
+        self.seed_devices()
+        self.seed_device_history()
+        self.seed_detection_records()
+        self.seed_messages()
+        self.seed_announcements()
+
+        logger.info("=" * 60)
+        logger.info("所有数据填充完成!")
+        logger.info("=" * 60)
 
 
 def main():
@@ -350,7 +638,7 @@ def main():
         print("\n可用命令:")
         print("  build   - 从模型创建所有数据库表")
         print("  clear   - 清空数据库所有数据（保留表结构）")
-        print("  seed    - 填充基础数据（职称、部门、缺陷类型、角色、管理员）")
+        print("  seed    - 填充所有数据（基础数据+用户+设备+检测记录等）")
         print("  all     - 完整初始化（删除所有表+建表+填充数据）")
         return
 
@@ -370,6 +658,7 @@ def main():
         print("\n" + "=" * 50)
         print("数据库完整初始化完成!")
         print("默认管理员账号: admin / admin123")
+        print("普通用户密码: password123")
         print("缺陷图片路径: debug/images/")
         print("=" * 50)
     else:
