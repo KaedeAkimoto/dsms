@@ -121,14 +121,12 @@ class RepairManager:
         logger.info("=" * 50)
 
         with db_config.engine.connect() as conn:
-            conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
             for table_name in reversed(self.TABLE_ORDER_BY_DEPENDENCY):
                 try:
                     conn.execute(text(f"DROP TABLE IF EXISTS {table_name} CASCADE"))
                     logger.info(f"  已删除表: {table_name}")
                 except Exception as e:
                     logger.warning(f"  删除表 {table_name} 失败: {e}")
-            conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
             conn.commit()
 
         logger.info("\n根据模型重建所有表...")
