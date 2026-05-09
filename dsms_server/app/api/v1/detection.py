@@ -183,11 +183,22 @@ async def get_defect_detail(
     if not defect_detail:
         raise HTTPException(status_code=404, detail="缺陷详情不存在")
 
+    def encode_image(img_data) -> str:
+        if img_data is None:
+            return ''
+        try:
+            if isinstance(img_data, (bytes, bytearray)):
+                return base64.b64encode(img_data).decode('utf-8')
+            else:
+                return base64.b64encode(bytes(img_data)).decode('utf-8')
+        except Exception:
+            return ''
+
     return SuccessResponse(
         data={
             'defect_details_id': str(defect_detail.defect_details_id),
             'record_batch_id': defect_detail.record_batch_id,
-            'image_base64': base64.b64encode(defect_detail.image).decode('utf-8') if defect_detail.image else '',
+            'image_base64': encode_image(defect_detail.image),
             'image_format': defect_detail.image_format,
             'defect_count': defect_detail.defect_count,
             'details': defect_detail.details

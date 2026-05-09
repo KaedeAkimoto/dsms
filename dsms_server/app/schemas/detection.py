@@ -42,6 +42,18 @@ class DetectionRecordResponse(BaseModel):
     @classmethod
     def from_orm(cls, obj):
         """从 ORM 模型创建响应"""
+        def encode_image(img_data) -> str:
+            """安全地编码图片数据为 base64"""
+            if img_data is None:
+                return ''
+            try:
+                if isinstance(img_data, (bytes, bytearray)):
+                    return base64.b64encode(img_data).decode('utf-8')
+                else:
+                    return base64.b64encode(bytes(img_data)).decode('utf-8')
+            except Exception:
+                return ''
+
         return cls.model_validate({
             'record_batch_id': obj.record_batch_id,
             'device_id': str(obj.device_id),
@@ -53,7 +65,7 @@ class DetectionRecordResponse(BaseModel):
                 {
                     'defect_details_id': str(d.defect_details_id),
                     'record_batch_id': d.record_batch_id,
-                    'image_base64': base64.b64encode(d.image).decode('utf-8') if d.image else '',
+                    'image_base64': encode_image(d.image),
                     'image_format': d.image_format,
                     'defect_count': d.defect_count,
                     'details': d.details if d.details else [],
