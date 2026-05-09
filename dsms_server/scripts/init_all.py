@@ -295,11 +295,11 @@ class DatabaseInitializer:
             )).scalar_one_or_none()
 
             qa_role = session.execute(select(Role).where(
-                Role.role_name == SystemRole.ROLE_NAMES[SystemRole.QA_INSPECTOR]
+                Role.role_name == SystemRole.ROLE_NAMES[SystemRole.DETECTION_MONITOR]
             )).scalar_one_or_none()
 
             operator_role = session.execute(select(Role).where(
-                Role.role_name == SystemRole.ROLE_NAMES[SystemRole.PRODUCTION_OPERATOR]
+                Role.role_name == SystemRole.ROLE_NAMES[SystemRole.NORMAL_EMPLOYEE]
             )).scalar_one_or_none()
 
             users_data = [
