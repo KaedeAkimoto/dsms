@@ -172,11 +172,7 @@ class ServerConfig:
             window_seconds=self.settings.rate_limit_window_seconds
         )
 
-        # Auth Middleware
-        from app.core.middlewares import AuthMiddleware
-        app.add_middleware(AuthMiddleware)
-
-        # CORS Middleware
+        # CORS Middleware (must be before AuthMiddleware to handle OPTIONS preflight)
         app.add_middleware(
             CORSMiddleware,
             allow_origins=self.settings.cors_origins,
@@ -184,6 +180,10 @@ class ServerConfig:
             allow_methods=self.settings.cors_allow_methods,
             allow_headers=self.settings.cors_allow_headers,
         )
+
+        # Auth Middleware
+        from app.core.middlewares import AuthMiddleware
+        app.add_middleware(AuthMiddleware)
 
         # GZip Middleware
         app.add_middleware(GZipMiddleware, minimum_size=1000)
