@@ -107,9 +107,6 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="申请原因" prop="reason">
-          <el-input type="textarea" v-model="createForm.reason" placeholder="请输入申请原因" :rows="3" />
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showCreateDialog = false">取消</el-button>
@@ -136,9 +133,6 @@
         </el-form-item>
         <el-form-item label="申请时间">
           <el-input v-model="detailData.created_at" />
-        </el-form-item>
-        <el-form-item label="申请原因">
-          <el-input type="textarea" v-model="detailData.reason" :rows="3" />
         </el-form-item>
         <el-form-item label="审批状态">
           <el-tag :type="getStatusType(detailData.status)">{{ getStatusText(detailData.status) }}</el-tag>
@@ -213,8 +207,7 @@ const createForm = reactive({
   device_type: '',
   production_line_id: '',
   device_manager: '',
-  approval_by: '',
-  reason: ''
+  approval_by: ''
 })
 
 const approveForm = reactive({
@@ -309,8 +302,7 @@ const handleCreate = async () => {
           device_type: createForm.device_type,
           production_line_id: createForm.production_line_id,
           device_manager: createForm.device_manager,
-          approval_by: createForm.approval_by,
-          reason: createForm.reason
+          approval_by: createForm.approval_by
         })
         ElMessage.success('发起审批成功')
         showCreateDialog.value = false
@@ -319,7 +311,6 @@ const handleCreate = async () => {
         createForm.production_line_id = ''
         createForm.device_manager = ''
         createForm.approval_by = ''
-        createForm.reason = ''
         loadData()
       } catch (error) {
         console.error('Create approval failed:', error)
