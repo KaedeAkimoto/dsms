@@ -451,7 +451,7 @@ class UserMessageService:
                 content=content
             )
             
-            if send_user == receive_user:
+            if str(send_user) == str(receive_user):
                 message.status = "read"
                 message.readed_at = datetime.now(timezone.utc)
             
