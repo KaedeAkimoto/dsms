@@ -89,11 +89,25 @@
           <el-form-item label="设备类型" prop="device_type">
             <el-input v-model="editForm.device_type" placeholder="请输入设备类型" />
           </el-form-item>
-          <el-form-item label="生产线ID" prop="production_line_id">
-            <el-input v-model="editForm.production_line_id" placeholder="请输入生产线ID" />
+          <el-form-item label="生产线" prop="production_line_id">
+            <el-select v-model="editForm.production_line_id" placeholder="请选择生产线" style="width: 100%;">
+              <el-option 
+                v-for="line in productionLines" 
+                :key="line.production_line_id" 
+                :label="line.production_line_name + ' (' + line.production_line_id + ')'" 
+                :value="line.production_line_id" 
+              />
+            </el-select>
           </el-form-item>
           <el-form-item label="设备管理员" prop="device_manager">
-            <el-input v-model="editForm.device_manager" placeholder="请输入设备管理员" />
+            <el-select v-model="editForm.device_manager" placeholder="请选择设备管理员" style="width: 100%;">
+              <el-option 
+                v-for="user in userList" 
+                :key="user.user_id" 
+                :label="user.real_name + ' (' + user.user_name + ')'" 
+                :value="user.user_id" 
+              />
+            </el-select>
           </el-form-item>
           <el-form-item label="IP地址">
             <el-input v-model="editForm.ip_addr" placeholder="请输入IP地址" />
@@ -193,6 +207,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { deviceService } from '../../services/device'
+import { userService } from '../../services/user'
 
 const loading = ref(false)
 const searchQuery = ref('')
@@ -222,6 +237,10 @@ const currentDetail = reactive({
   created_at: '',
   last_active: ''
 })
+
+// 生产线列表和用户列表（用于下拉选择）
+const productionLines = ref([])
+const userList = ref([])
 
 const editForm = reactive({
   device_id: '',
@@ -423,7 +442,22 @@ const handleGenerateTokenFromRow = async (row) => {
   }
 }
 
-onMounted(() => {})
+const loadOptions = async () => {
+  try {
+    const [lineRes, userRes] = await Promise.all([
+      deviceService.getProductionLines(),
+      userService.getList()
+    ])
+    productionLines.value = lineRes.data.production_lines || []
+    userList.value = userRes.data.users || []
+  } catch (error) {
+    console.error('Load options failed:', error)
+  }
+}
+
+onMounted(() => {
+  loadOptions()
+})
 </script>
 
 <style scoped>

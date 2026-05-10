@@ -81,7 +81,14 @@
           <el-input v-model="createForm.production_line_id" placeholder="请输入生产线ID" />
         </el-form-item>
         <el-form-item label="设备管理员" prop="device_manager">
-          <el-input v-model="createForm.device_manager" placeholder="请输入设备管理员ID" />
+          <el-select v-model="createForm.device_manager" placeholder="请选择设备管理员" style="width: 100%;">
+            <el-option 
+              v-for="user in userList" 
+              :key="user.user_id" 
+              :label="user.real_name + ' (' + user.user_name + ')'" 
+              :value="user.user_id" 
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="申请原因" prop="reason">
           <el-input type="textarea" v-model="createForm.reason" placeholder="请输入申请原因" :rows="3" />
@@ -152,6 +159,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { deviceService } from '../../services/device'
+import { userService } from '../../services/user'
 import { formatDateTime } from '../../utils/date'
 
 const loading = ref(false)
@@ -175,6 +183,9 @@ const createLoading = ref(false)
 const approveLoading = ref(false)
 const approveAction = ref('approve')
 const currentApprovalId = ref(null)
+
+// 用户列表（用于下拉选择）
+const userList = ref([])
 
 const createFormRef = ref(null)
 const approveFormRef = ref(null)
@@ -326,6 +337,7 @@ const confirmApprove = async () => {
     })
     ElMessage.success('审批完成')
     showApproveDialog.value = false
+    approveForm.comment = ''
     loadData()
   } catch (error) {
     console.error('Approve failed:', error)
@@ -335,8 +347,18 @@ const confirmApprove = async () => {
   }
 }
 
+const loadUsers = async () => {
+  try {
+    const res = await userService.getList()
+    userList.value = res.data.users || []
+  } catch (error) {
+    console.error('Load users failed:', error)
+  }
+}
+
 onMounted(() => {
   loadData()
+  loadUsers()
 })
 </script>
 
