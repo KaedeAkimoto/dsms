@@ -431,15 +431,28 @@ class DeviceApprovalService:
 
     @staticmethod
     def process_approval(device_approval_id: UUID, approved: bool) -> Optional[DeviceApproval]:
+        from sqlalchemy import select
         from sqlalchemy.orm import joinedload
         
         with db_config.get_session() as session:
-            approval = session.get(DeviceApproval, device_approval_id)
+            result = session.execute(
+                select(DeviceApproval)
+                .options(joinedload(DeviceApproval.devices))
+                .where(DeviceApproval.device_approval_id == device_approval_id)
+            )
+            approval = result.scalars().first()
             if not approval:
                 return None
 
             approval.approval_status = "approved" if approved else "rejected"
             approval.processed_at = datetime.now(timezone.utc)
+
+            # 更新关联设备的状态
+            for device in approval.devices:
+                if approved:
+                    device.status = "active"
+                else:
+                    device.status = "inactive"
 
             session.add(approval)
             session.commit()
