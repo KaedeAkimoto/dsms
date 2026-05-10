@@ -21,8 +21,8 @@
 
       <div class="search-type">
         <el-radio-group v-model="searchType" size="small">
-          <el-radio-button label="exact">精准查找</el-radio-button>
-          <el-radio-button label="fuzzy">模糊查找</el-radio-button>
+          <el-radio-button value="exact">精准查找</el-radio-button>
+          <el-radio-button value="fuzzy">模糊查找</el-radio-button>
         </el-radio-group>
       </div>
 
