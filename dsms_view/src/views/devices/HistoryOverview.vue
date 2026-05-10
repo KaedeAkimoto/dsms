@@ -264,7 +264,7 @@ const initCharts = () => {
  },
  xAxis: {
  type: 'category',
- data: lineChartData.map(item => item.line)
+ data: lineChartData.value.map(item => item.line)
  },
  yAxis: {
  type: 'value'
@@ -281,7 +281,7 @@ const initCharts = () => {
  emphasis: {
  focus: 'series'
  },
- data: lineChartData.map(item => item.active),
+ data: lineChartData.value.map(item => item.active),
  itemStyle: { color: '#67C23A' }
  },
  {
@@ -295,7 +295,7 @@ const initCharts = () => {
  emphasis: {
  focus: 'series'
  },
- data: lineChartData.map(item => item.fault),
+ data: lineChartData.value.map(item => item.fault),
  itemStyle: { color: '#F56C6C' }
  },
  {
@@ -309,7 +309,7 @@ const initCharts = () => {
  emphasis: {
  focus: 'series'
  },
- data: lineChartData.map(item => item.maintenance),
+ data: lineChartData.value.map(item => item.maintenance),
  itemStyle: { color: '#E6A23C' }
  },
  {
@@ -323,7 +323,7 @@ const initCharts = () => {
  emphasis: {
  focus: 'series'
  },
- data: lineChartData.map(item => item.inactive),
+ data: lineChartData.value.map(item => item.inactive),
  itemStyle: { color: '#909399' }
  }
  ]
@@ -346,10 +346,10 @@ const refreshData = async () => {
     stats.inactive_count = devices.filter(d => d.status === 'inactive').length;
     stats.maintenance_count = devices.filter(d => d.status === 'maintenance').length;
     
-    lineChartData.length = 0;
+    lineChartData.value.length = 0;
     productionLines.forEach(line => {
       const lineDevices = devices.filter(d => d.production_line_id === line.production_line_id);
-      lineChartData.push({
+      lineChartData.value.push({
         line: line.production_line_name || line.production_line_id,
         active: lineDevices.filter(d => d.status === 'active').length,
         fault: lineDevices.filter(d => d.status === 'fault').length,
@@ -376,24 +376,24 @@ const refreshData = async () => {
  if (lineChartInstance) {
  lineChartInstance.setOption({
  xAxis: {
- data: lineChartData.map(item => item.line)
+ data: lineChartData.value.map(item => item.line)
  },
  series: [
  {
  name: '运行中',
- data: lineChartData.map(item => item.active)
+ data: lineChartData.value.map(item => item.active)
  },
  {
  name: '故障',
- data: lineChartData.map(item => item.fault)
+ data: lineChartData.value.map(item => item.fault)
  },
  {
  name: '维护中',
- data: lineChartData.map(item => item.maintenance)
+ data: lineChartData.value.map(item => item.maintenance)
  },
  {
  name: '未激活',
- data: lineChartData.map(item => item.inactive)
+ data: lineChartData.value.map(item => item.inactive)
  }
  ]
  });
