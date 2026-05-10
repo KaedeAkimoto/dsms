@@ -135,23 +135,50 @@ class DeviceApprovalRequest(BaseModel):
 class DeviceApprovalResponse(BaseModel):
     device_approval_id: UUID
     device_id: Optional[UUID] = None
+    device_name: Optional[str] = None
+    device_type: Optional[str] = None
     approver_id: UUID
+    approver_name: Optional[str] = None
+    applicant_name: Optional[str] = None
     status: str
+    reason: Optional[str] = None
     comment: Optional[str] = None
+    approve_comment: Optional[str] = None
     created_at: Optional[str] = None
+    approve_time: Optional[str] = None
 
     @classmethod
     def from_orm(cls, obj):
-        # 从关联的设备列表中获取第一个设备ID
-        device_id = str(obj.devices[0].device_id) if obj.devices and len(obj.devices) > 0 else None
+        # 从关联的设备列表中获取设备信息
+        device_id = None
+        device_name = None
+        device_type = None
+        if obj.devices and len(obj.devices) > 0:
+            device = obj.devices[0]
+            device_id = str(device.device_id)
+            device_name = device.device_name
+            device_type = device.device_type
+        
+        # 获取申请人姓名
+        applicant_name = obj.sender.username if obj.sender else None
+        
+        # 获取审批人姓名
+        approver_name = obj.approver.username if obj.approver else None
         
         return cls.model_validate({
             'device_approval_id': str(obj.device_approval_id),
             'device_id': device_id,
+            'device_name': device_name,
+            'device_type': device_type,
             'approver_id': str(obj.approval_by),
+            'approver_name': approver_name,
+            'applicant_name': applicant_name,
             'status': obj.approval_status,
+            'reason': getattr(obj, 'reason', None),
             'comment': getattr(obj, 'comment', None),
+            'approve_comment': getattr(obj, 'approve_comment', None),
             'created_at': convert_datetime_to_string(obj.created_at) if hasattr(obj, 'created_at') and obj.created_at else None,
+            'approve_time': convert_datetime_to_string(obj.processed_at) if hasattr(obj, 'processed_at') and obj.processed_at else None,
         })
 
 

@@ -383,10 +383,12 @@ class DeviceApprovalService:
                     device.device_approval_id = approval.device_approval_id
                     session.commit()
             
-            # 重新查询并预加载设备关系，确保返回的对象可以访问devices
+            # 重新查询并预加载设备关系和用户关系，确保返回的对象可以访问devices、sender和approver
             result = session.execute(
                 select(DeviceApproval)
                 .options(joinedload(DeviceApproval.devices))
+                .options(joinedload(DeviceApproval.sender))
+                .options(joinedload(DeviceApproval.approver))
                 .where(DeviceApproval.device_approval_id == approval.device_approval_id)
             )
             return result.scalars().first()
@@ -400,6 +402,8 @@ class DeviceApprovalService:
             result = session.execute(
                 select(DeviceApproval)
                 .options(joinedload(DeviceApproval.devices))
+                .options(joinedload(DeviceApproval.sender))
+                .options(joinedload(DeviceApproval.approver))
                 .where(DeviceApproval.device_approval_id == device_approval_id)
             )
             return result.scalars().first()
@@ -409,7 +413,7 @@ class DeviceApprovalService:
         from sqlalchemy.orm import joinedload
         
         with db_config.get_session() as session:
-            query = select(DeviceApproval).options(joinedload(DeviceApproval.devices))
+            query = select(DeviceApproval).options(joinedload(DeviceApproval.devices)).options(joinedload(DeviceApproval.sender)).options(joinedload(DeviceApproval.approver))
             if status:
                 query = query.where(DeviceApproval.approval_status == status)
             query = query.offset(skip).limit(limit)
@@ -440,10 +444,12 @@ class DeviceApprovalService:
             session.add(approval)
             session.commit()
             
-            # 重新查询并预加载设备关系
+            # 重新查询并预加载设备关系和用户关系
             result = session.execute(
                 select(DeviceApproval)
                 .options(joinedload(DeviceApproval.devices))
+                .options(joinedload(DeviceApproval.sender))
+                .options(joinedload(DeviceApproval.approver))
                 .where(DeviceApproval.device_approval_id == device_approval_id)
             )
             return result.scalars().first()

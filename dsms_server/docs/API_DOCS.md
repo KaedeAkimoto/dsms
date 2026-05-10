@@ -1819,10 +1819,17 @@ interface AuditLog {
   "data": {
     "device_approval_id": "uuid-string",
     "device_id": "uuid-string",
+    "device_name": "设备名称",
+    "device_type": "设备类型",
     "approver_id": "uuid-string",
+    "approver_name": "审批人姓名",
+    "applicant_name": "申请人姓名",
     "status": "pending",
+    "reason": "申请原因",
     "comment": null,
-    "created_at": "2024-01-01T00:00:00Z"
+    "approve_comment": null,
+    "created_at": "2024-01-01T00:00:00Z",
+    "approve_time": null
   }
 }
 ```
@@ -1855,10 +1862,17 @@ interface AuditLog {
       {
         "device_approval_id": "uuid-string",
         "device_id": "uuid-string",
+        "device_name": "设备名称",
+        "device_type": "设备类型",
         "approver_id": "uuid-string",
+        "approver_name": "审批人姓名",
+        "applicant_name": "申请人姓名",
         "status": "pending",
+        "reason": "申请原因",
         "comment": null,
-        "created_at": "2024-01-01T00:00:00Z"
+        "approve_comment": null,
+        "created_at": "2024-01-01T00:00:00Z",
+        "approve_time": null
       }
     ]
   }
@@ -1887,10 +1901,17 @@ interface AuditLog {
   "data": {
     "device_approval_id": "uuid-string",
     "device_id": "uuid-string",
+    "device_name": "设备名称",
+    "device_type": "设备类型",
     "approver_id": "uuid-string",
+    "approver_name": "审批人姓名",
+    "applicant_name": "申请人姓名",
     "status": "approved",
+    "reason": "申请原因",
     "comment": null,
-    "created_at": "2024-01-01T00:00:00Z"
+    "approve_comment": "审批意见",
+    "created_at": "2024-01-01T00:00:00Z",
+    "approve_time": "2024-01-01T10:00:00Z"
   }
 }
 ```
