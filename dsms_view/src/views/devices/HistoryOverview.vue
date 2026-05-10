@@ -19,30 +19,30 @@
           </div>
         </el-card>
         <el-card class="stat-card">
-          <div class="stat-icon offline">
+          <div class="stat-icon fault">
             <el-icon><DataAnalysis /></el-icon>
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.offline_count }}</div>
-            <div class="stat-label">离线设备</div>
+            <div class="stat-label">故障设备</div>
+          </div>
+        </el-card>
+        <el-card class="stat-card">
+          <div class="stat-icon maintenance">
+            <el-icon><Warning /></el-icon>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ stats.maintenance_count }}</div>
+            <div class="stat-label">维护中</div>
           </div>
         </el-card>
         <el-card class="stat-card">
           <div class="stat-icon inactive">
-            <el-icon><Warning /></el-icon>
+            <el-icon><Monitor /></el-icon>
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.inactive_count }}</div>
             <div class="stat-label">未激活设备</div>
-          </div>
-        </el-card>
-        <el-card class="stat-card">
-          <div class="stat-icon total">
-            <el-icon><Monitor /></el-icon>
-          </div>
-          <div class="stat-info">
-            <div class="stat-value">{{ stats.total_count }}</div>
-            <div class="stat-label">设备总数</div>
           </div>
         </el-card>
       </div>
@@ -422,7 +422,12 @@ onUnmounted(() => {
   color: #67C23A;
 }
 
-.stat-icon.offline {
+.stat-icon.fault {
+  background: rgba(245, 108, 108, 0.1);
+  color: #F56C6C;
+}
+
+.stat-icon.maintenance {
   background: rgba(230, 162, 60, 0.1);
   color: #E6A23C;
 }
@@ -430,11 +435,6 @@ onUnmounted(() => {
 .stat-icon.inactive {
   background: rgba(144, 147, 153, 0.1);
   color: #909399;
-}
-
-.stat-icon.total {
-  background: rgba(64, 158, 255, 0.1);
-  color: #409EFF;
 }
 
 .stat-info {
