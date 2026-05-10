@@ -195,6 +195,27 @@ class ServerConfig:
         from fastapi.exceptions import RequestValidationError
         from starlette.exceptions import HTTPException as StarletteHTTPException
         
+        def _get_cors_headers(request: Request) -> dict:
+            """获取CORS响应头"""
+            headers = {}
+            
+            # 检查请求来源
+            origin = request.headers.get("origin")
+            if origin:
+                # 如果来源在允许列表中，设置Access-Control-Allow-Origin
+                allowed_origins = self.settings.cors_origins
+                if allowed_origins == ["*"] or origin in allowed_origins:
+                    headers["Access-Control-Allow-Origin"] = origin if allowed_origins != ["*"] else "*"
+            
+            # 设置其他CORS头
+            if self.settings.cors_allow_credentials:
+                headers["Access-Control-Allow-Credentials"] = "true"
+            
+            headers["Access-Control-Allow-Methods"] = ", ".join(self.settings.cors_allow_methods)
+            headers["Access-Control-Allow-Headers"] = ", ".join(self.settings.cors_allow_headers)
+            
+            return headers
+        
         # HTTP Exception Handler
         @app.exception_handler(StarletteHTTPException)
         async def http_exception_handler(request: Request, exc: StarletteHTTPException):
@@ -204,7 +225,8 @@ class ServerConfig:
                     "code": exc.status_code,
                     "message": exc.detail,
                     "data": None
-                }
+                },
+                headers=_get_cors_headers(request)
             )
         
         # Validation Exception Handler
@@ -216,7 +238,8 @@ class ServerConfig:
                     "code": status.HTTP_422_UNPROCESSABLE_ENTITY,
                     "message": "Validation error",
                     "data": exc.errors()
-                }
+                },
+                headers=_get_cors_headers(request)
             )
         
         # Global Exception Handler
@@ -238,7 +261,8 @@ class ServerConfig:
                     "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                     "message": error_detail,
                     "data": {"traceback": traceback_str} if traceback_str else None
-                }
+                },
+                headers=_get_cors_headers(request)
             )
     
     def include_router(self, router, prefix: str = "", tags: list = None):

@@ -25,18 +25,6 @@ api.interceptors.request.use(
   }
 )
 
-const isTokenExpired = (error) => {
-  if (error.response) {
-    const { status, data } = error.response
-    if (status === 401) return true
-    if (data && data.code === 401) return true
-    if (data && (data.message?.includes('token') || data.message?.includes('登录') || data.message?.includes('过期'))) return true
-  }
-  if (error.message?.includes('timeout') || error.message?.includes('Network')) return false
-  if (!error.response && error.request) return false
-  return false
-}
-
 api.interceptors.response.use(
   (response) => {
     const res = response.data
@@ -55,7 +43,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response) {
       const { status, data } = error.response
-      if (status === 401 || (data && data.code === 401)) {
+      if (status === 401 || (data && (data.code === 401 || data.message?.includes('token') || data.message?.includes('Unauthorized')))) {
         localStorage.removeItem('access_token')
         localStorage.removeItem('user')
         router.push('/login')
@@ -70,11 +58,16 @@ api.interceptors.response.use(
         ElMessage.error(data?.message || '请求失败')
       }
     } else if (error.request) {
-      if (isTokenExpired(error)) {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('user')
-        router.push('/login')
-        ElMessage.error('登录已过期，请重新登录')
+      if (error.message?.includes('CORS') || error.message?.includes('Network') || error.message?.includes('fail')) {
+        const token = localStorage.getItem('access_token')
+        if (token) {
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('user')
+          router.push('/login')
+          ElMessage.error('登录已过期，请重新登录')
+        } else {
+          ElMessage.error('网络错误，请检查网络连接')
+        }
       } else {
         ElMessage.error('网络错误，请检查网络连接')
       }
