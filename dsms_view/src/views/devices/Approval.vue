@@ -75,7 +75,7 @@
           <el-input v-model="createForm.device_id" placeholder="请输入设备ID" />
         </el-form-item>
         <el-form-item label="申请原因" prop="reason">
-          <el-textarea v-model="createForm.reason" placeholder="请输入申请原因" rows="3" />
+          <el-input type="textarea" v-model="createForm.reason" placeholder="请输入申请原因" :rows="3" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -105,7 +105,7 @@
           <el-input v-model="detailData.apply_time" />
         </el-form-item>
         <el-form-item label="申请原因">
-          <el-textarea v-model="detailData.reason" rows="3" />
+          <el-input type="textarea" v-model="detailData.reason" :rows="3" />
         </el-form-item>
         <el-form-item label="审批状态">
           <el-tag :type="getStatusType(detailData.status)">{{ getStatusText(detailData.status) }}</el-tag>
@@ -117,7 +117,7 @@
           <el-input v-model="detailData.approve_time" />
         </el-form-item>
         <el-form-item v-if="detailData.approve_comment" label="审批意见">
-          <el-textarea v-model="detailData.approve_comment" rows="3" />
+          <el-input type="textarea" v-model="detailData.approve_comment" :rows="3" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -128,7 +128,7 @@
     <el-dialog v-model="showApproveDialog" title="审批处理" width="400px">
       <el-form ref="approveFormRef" :model="approveForm" label-width="80px">
         <el-form-item label="审批意见">
-          <el-textarea v-model="approveForm.comment" placeholder="请输入审批意见" rows="3" />
+          <el-input type="textarea" v-model="approveForm.comment" placeholder="请输入审批意见" :rows="3" />
         </el-form-item>
       </el-form>
       <template #footer>
