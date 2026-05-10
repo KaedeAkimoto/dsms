@@ -35,6 +35,9 @@
         >
           <el-table-column prop="device_approval_id" label="审批ID" width="220" show-overflow-tooltip />
           <el-table-column prop="device_id" label="设备ID" width="180" show-overflow-tooltip />
+          <el-table-column prop="device_name" label="设备名称" />
+          <el-table-column prop="device_type" label="设备类型" width="120" />
+          <el-table-column prop="applicant_name" label="申请人" width="100" />
           <el-table-column prop="created_at" label="申请时间" />
           <el-table-column prop="status" label="状态" width="100">
             <template #default="{ row }">
@@ -132,7 +135,7 @@
           <el-input v-model="detailData.applicant_name" />
         </el-form-item>
         <el-form-item label="申请时间">
-          <el-input v-model="detailData.apply_time" />
+          <el-input v-model="detailData.created_at" />
         </el-form-item>
         <el-form-item label="申请原因">
           <el-input type="textarea" v-model="detailData.reason" :rows="3" />
@@ -146,8 +149,8 @@
         <el-form-item v-if="detailData.approve_time" label="审批时间">
           <el-input v-model="detailData.approve_time" />
         </el-form-item>
-        <el-form-item v-if="detailData.approve_comment" label="审批意见">
-          <el-input type="textarea" v-model="detailData.approve_comment" :rows="3" />
+        <el-form-item v-if="detailData.comment" label="审批意见">
+          <el-input type="textarea" v-model="detailData.comment" :rows="3" />
         </el-form-item>
       </el-form>
       <template #footer>
