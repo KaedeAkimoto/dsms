@@ -71,8 +71,17 @@
 
     <el-dialog v-model="showCreateDialog" title="发起设备审批" width="500px">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px">
-        <el-form-item label="设备ID" prop="device_id">
-          <el-input v-model="createForm.device_id" placeholder="请输入设备ID" />
+        <el-form-item label="设备名称" prop="device_name">
+          <el-input v-model="createForm.device_name" placeholder="请输入设备名称" />
+        </el-form-item>
+        <el-form-item label="设备类型" prop="device_type">
+          <el-input v-model="createForm.device_type" placeholder="请输入设备类型" />
+        </el-form-item>
+        <el-form-item label="生产线ID" prop="production_line_id">
+          <el-input v-model="createForm.production_line_id" placeholder="请输入生产线ID" />
+        </el-form-item>
+        <el-form-item label="设备管理员" prop="device_manager">
+          <el-input v-model="createForm.device_manager" placeholder="请输入设备管理员ID" />
         </el-form-item>
         <el-form-item label="申请原因" prop="reason">
           <el-input type="textarea" v-model="createForm.reason" placeholder="请输入申请原因" :rows="3" />
@@ -171,7 +180,10 @@ const createFormRef = ref(null)
 const approveFormRef = ref(null)
 
 const createForm = reactive({
-  device_id: '',
+  device_name: '',
+  device_type: '',
+  production_line_id: '',
+  device_manager: '',
   reason: ''
 })
 
@@ -182,8 +194,10 @@ const approveForm = reactive({
 const detailData = reactive({})
 
 const createRules = {
-  device_id: [{ required: true, message: '请输入设备ID', trigger: 'blur' }],
-  reason: [{ required: true, message: '请输入申请原因', trigger: 'blur' }]
+  device_name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
+  device_type: [{ required: true, message: '请输入设备类型', trigger: 'blur' }],
+  production_line_id: [{ required: true, message: '请输入生产线ID', trigger: 'blur' }],
+  device_manager: [{ required: true, message: '请输入设备管理员ID', trigger: 'blur' }]
 }
 
 const getStatusType = (status) => {
@@ -265,12 +279,18 @@ const handleCreate = async () => {
       createLoading.value = true
       try {
         await deviceService.createApproval({
-          device_id: createForm.device_id,
+          device_name: createForm.device_name,
+          device_type: createForm.device_type,
+          production_line_id: createForm.production_line_id,
+          device_manager: createForm.device_manager,
           reason: createForm.reason
         })
         ElMessage.success('发起审批成功')
         showCreateDialog.value = false
-        createForm.device_id = ''
+        createForm.device_name = ''
+        createForm.device_type = ''
+        createForm.production_line_id = ''
+        createForm.device_manager = ''
         createForm.reason = ''
         loadData()
       } catch (error) {
