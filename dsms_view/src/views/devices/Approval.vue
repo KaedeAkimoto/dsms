@@ -345,10 +345,7 @@ const handleReject = (row) => {
 const confirmApprove = async () => {
   approveLoading.value = true
   try {
-    await deviceService.approve(currentApprovalId.value, {
-      status: approveAction.value === 'approve' ? 'approved' : 'rejected',
-      comment: approveForm.comment
-    })
+    await deviceService.approve(currentApprovalId.value, approveAction.value === 'approve')
     ElMessage.success('审批完成')
     showApproveDialog.value = false
     approveForm.comment = ''

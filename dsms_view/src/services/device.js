@@ -65,8 +65,8 @@ export const deviceService = {
     return api.post('/device-approvals', data)
   },
 
-  approve(device_approval_id, data) {
-    return api.put(`/device-approvals/${device_approval_id}`, data)
+  approve(device_approval_id, approved) {
+    return api.put(`/device-approvals/${device_approval_id}?approved=${approved}`)
   },
 
   search(params) {
