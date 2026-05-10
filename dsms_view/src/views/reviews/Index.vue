@@ -393,6 +393,7 @@ const viewForm = reactive({
 })
 
 const getStatusType = (status) => {
+  if (!status || typeof status !== 'string') return 'info'
   const types = { pending: 'warning', completed: 'success', cancel: 'info', timeout: 'danger' }
   return types[status] || 'info'
 }
@@ -403,6 +404,7 @@ const getStatusText = (status) => {
 }
 
 const getResultType = (result) => {
+  if (!result || typeof result !== 'string') return 'info'
   const types = { confirmed: 'success', false_positive: 'info', uncertain: 'warning', confusion: 'danger' }
   return types[result] || 'info'
 }
