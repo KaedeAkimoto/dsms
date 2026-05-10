@@ -273,6 +273,27 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/ws/",
     ]
 
+    def _get_cors_headers(self, request: Request) -> dict:
+        """获取CORS响应头"""
+        headers = {}
+        
+        # 检查请求来源
+        origin = request.headers.get("origin")
+        if origin:
+            # 如果来源在允许列表中，设置Access-Control-Allow-Origin
+            allowed_origins = server_config.settings.cors_origins
+            if allowed_origins == ["*"] or origin in allowed_origins:
+                headers["Access-Control-Allow-Origin"] = origin if allowed_origins != ["*"] else "*"
+        
+        # 设置其他CORS头
+        if server_config.settings.cors_allow_credentials:
+            headers["Access-Control-Allow-Credentials"] = "true"
+        
+        headers["Access-Control-Allow-Methods"] = ", ".join(server_config.settings.cors_allow_methods)
+        headers["Access-Control-Allow-Headers"] = ", ".join(server_config.settings.cors_allow_headers)
+        
+        return headers
+
     async def dispatch(self, request: Request, call_next: Callable):
         # 检查是否是需要认证的路径
         if self._is_exempt(request.url.path):
@@ -325,7 +346,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     "code": 401,
                     "message": "Invalid or expired token",
                     "data": None
-                }
+                },
+                headers=self._get_cors_headers(request)
             )
         except ValueError:
             return JSONResponse(
@@ -334,7 +356,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     "code": 401,
                     "message": "Invalid authorization header format",
                     "data": None
-                }
+                },
+                headers=self._get_cors_headers(request)
             )
 
         return await call_next(request)
