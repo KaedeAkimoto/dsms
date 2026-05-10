@@ -670,12 +670,16 @@ const handleReject = (row) => {
 const handleSubmitReview = async () => {
   submitLoading.value = true
   try {
+    const authStore = useAuthStore()
+    const currentUser = authStore.currentUser
+    
     const updateData = {
       review_status: 'completed',
       review_result: reviewForm.review_result,
       review_defect_count: reviewForm.review_defect_count,
       has_details: reviewForm.has_details,
-      review_comment: reviewForm.review_comment || undefined
+      review_comment: reviewForm.review_comment || undefined,
+      reviewer_id: currentUser?.user_id
     }
     
     if (reviewForm.has_details && drawnBoxes.value.length > 0) {
