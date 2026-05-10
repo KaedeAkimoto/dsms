@@ -276,7 +276,7 @@ const filteredDevices = computed(() => {
 
 const getStatusType = (status) => {
   const types = { active: 'success', fault: 'danger', inactive: 'info', maintenance: 'warning', removed: 'danger' }
-  return types[status] || ''
+  return types[status] || 'info'
 }
 
 const getStatusText = (status) => {

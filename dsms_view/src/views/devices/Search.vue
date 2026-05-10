@@ -249,7 +249,7 @@ const editRules = {
 
 const getStatusType = (status) => {
   const types = { online: 'success', offline: 'warning', inactive: 'info', removed: 'danger' }
-  return types[status] || ''
+  return types[status] || 'info'
 }
 
 const getStatusText = (status) => {
