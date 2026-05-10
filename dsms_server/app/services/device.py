@@ -362,6 +362,9 @@ class DeviceApprovalService:
         approval_by: UUID,
         device_id: Optional[UUID] = None
     ) -> Optional[DeviceApproval]:
+        from sqlalchemy import select
+        from sqlalchemy.orm import joinedload
+        
         with db_config.get_session() as session:
             approval = DeviceApproval(
                 device_approval_id=uuid4(),
@@ -379,9 +382,14 @@ class DeviceApprovalService:
                 if device:
                     device.device_approval_id = approval.device_approval_id
                     session.commit()
-                    session.refresh(approval)
             
-            return approval
+            # 重新查询并预加载设备关系，确保返回的对象可以访问devices
+            result = session.execute(
+                select(DeviceApproval)
+                .options(joinedload(DeviceApproval.devices))
+                .where(DeviceApproval.device_approval_id == approval.device_approval_id)
+            )
+            return result.scalars().first()
 
     @staticmethod
     def get_approval_by_id(device_approval_id: UUID) -> Optional[DeviceApproval]:
