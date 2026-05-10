@@ -398,6 +398,8 @@ class DeviceApprovalService:
 
     @staticmethod
     def get_all_approvals(skip: int = 0, limit: int = 100, status: Optional[str] = None) -> List[DeviceApproval]:
+        from sqlalchemy.orm import joinedload
+        
         with db_config.get_session() as session:
             query = select(DeviceApproval).options(joinedload(DeviceApproval.devices))
             if status:
