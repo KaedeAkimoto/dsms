@@ -541,9 +541,17 @@ async def create_device_approval(
     request: DeviceApprovalRequest,
     user: dict = Depends(require_permission)
 ):
+    device = device_service.create_device(
+        device_name=request.device_name,
+        device_type=request.device_type,
+        production_line_id=request.production_line_id,
+        device_manager=request.device_manager
+    )
+    
     approval = device_approval_service.create_approval(
         approval_send=user["user_id"],
-        approval_by=request.approval_by
+        approval_by=request.approval_by,
+        device_id=device.device_id
     )
 
     try:

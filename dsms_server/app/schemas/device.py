@@ -124,8 +124,12 @@ class ProductionLineListResponse(BaseModel):
 
 
 class DeviceApprovalRequest(BaseModel):
-    device_id: UUID = Field(description="设备ID")
-    action: str = Field(description="操作类型: approve/reject")
+    device_name: str = Field(description="设备名称")
+    device_type: str = Field(description="设备类型")
+    production_line_id: UUID = Field(description="生产线ID")
+    device_manager: UUID = Field(description="设备管理员ID")
+    approval_by: UUID = Field(description="审批人ID")
+    reason: Optional[str] = Field(None, description="申请原因")
 
 
 class DeviceApprovalResponse(BaseModel):
