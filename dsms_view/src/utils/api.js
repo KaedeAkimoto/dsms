@@ -58,18 +58,10 @@ api.interceptors.response.use(
         ElMessage.error(data?.message || '请求失败')
       }
     } else if (error.request) {
-      if (error.message?.includes('CORS') || error.message?.includes('Network') || error.message?.includes('fail')) {
-        const token = localStorage.getItem('access_token')
-        if (token) {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('user')
-          router.push('/login')
-          ElMessage.error('登录已过期，请重新登录')
-        } else {
-          ElMessage.error('网络错误，请检查网络连接')
-        }
-      } else {
+      if (error.message?.includes('CORS') || error.message?.includes('Network')) {
         ElMessage.error('网络错误，请检查网络连接')
+      } else {
+        ElMessage.error('请求失败，请稍后重试')
       }
     } else {
       ElMessage.error('请求配置错误')
