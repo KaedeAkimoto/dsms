@@ -450,6 +450,11 @@ class UserMessageService:
                 receive_user=receive_user,
                 content=content
             )
+            
+            if send_user == receive_user:
+                message.status = "read"
+                message.readed_at = datetime.now(timezone.utc)
+            
             session.add(message)
             session.commit()
             session.refresh(message)

@@ -117,10 +117,10 @@
         <el-descriptions-item label="Token" :span="2">
           <div style="display: flex; flex-direction: column; gap: 8px;">
             <span style="word-break: break-all;">{{ selectedDevice.token || '-' }}</span>
-            <el-button 
-              v-if="selectedDevice.token" 
-              type="link" 
-              size="small" 
+            <el-button
+              v-if="selectedDevice.token"
+              type="text"
+              size="small"
               style="align-self: flex-start;"
               @click="copyToken(selectedDevice.token)"
             >
