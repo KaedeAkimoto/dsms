@@ -406,7 +406,7 @@ class DeviceApprovalService:
                 query = query.where(DeviceApproval.approval_status == status)
             query = query.offset(skip).limit(limit)
             result = session.execute(query)
-            return list(result.scalars().all())
+            return list(result.scalars().unique().all())
 
     @staticmethod
     def count_approvals(status: Optional[str] = None) -> int:
