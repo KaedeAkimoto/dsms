@@ -71,24 +71,8 @@
 
     <el-dialog v-model="showCreateDialog" title="发起设备审批" width="500px">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px">
-        <el-form-item label="设备名称" prop="device_name">
-          <el-input v-model="createForm.device_name" placeholder="请输入设备名称" />
-        </el-form-item>
-        <el-form-item label="设备类型" prop="device_type">
-          <el-input v-model="createForm.device_type" placeholder="请输入设备类型" />
-        </el-form-item>
-        <el-form-item label="生产线" prop="production_line_id">
-          <el-select v-model="createForm.production_line_id" placeholder="请选择生产线" style="width: 100%;">
-            <el-option 
-              v-for="line in productionLines" 
-              :key="line.production_line_id" 
-              :label="line.production_line_name + ' (' + line.production_line_id + ')'" 
-              :value="line.production_line_id" 
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="设备管理员" prop="device_manager">
-          <el-select v-model="createForm.device_manager" placeholder="请选择设备管理员" style="width: 100%;">
+        <el-form-item label="审批人" prop="approval_by">
+          <el-select v-model="createForm.approval_by" placeholder="请选择审批人" style="width: 100%;">
             <el-option 
               v-for="user in userList" 
               :key="user.user_id" 
@@ -191,18 +175,14 @@ const approveLoading = ref(false)
 const approveAction = ref('approve')
 const currentApprovalId = ref(null)
 
-// 生产线列表和用户列表（用于下拉选择）
-const productionLines = ref([])
+// 用户列表（用于下拉选择）
 const userList = ref([])
 
 const createFormRef = ref(null)
 const approveFormRef = ref(null)
 
 const createForm = reactive({
-  device_name: '',
-  device_type: '',
-  production_line_id: '',
-  device_manager: '',
+  approval_by: '',
   reason: ''
 })
 
@@ -213,10 +193,7 @@ const approveForm = reactive({
 const detailData = reactive({})
 
 const createRules = {
-  device_name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
-  device_type: [{ required: true, message: '请输入设备类型', trigger: 'blur' }],
-  production_line_id: [{ required: true, message: '请输入生产线ID', trigger: 'blur' }],
-  device_manager: [{ required: true, message: '请输入设备管理员ID', trigger: 'blur' }]
+  approval_by: [{ required: true, message: '请选择审批人', trigger: 'change' }]
 }
 
 const getStatusType = (status) => {
@@ -298,18 +275,11 @@ const handleCreate = async () => {
       createLoading.value = true
       try {
         await deviceService.createApproval({
-          device_name: createForm.device_name,
-          device_type: createForm.device_type,
-          production_line_id: createForm.production_line_id,
-          device_manager: createForm.device_manager,
-          reason: createForm.reason
+          approval_by: createForm.approval_by
         })
         ElMessage.success('发起审批成功')
         showCreateDialog.value = false
-        createForm.device_name = ''
-        createForm.device_type = ''
-        createForm.production_line_id = ''
-        createForm.device_manager = ''
+        createForm.approval_by = ''
         createForm.reason = ''
         loadData()
       } catch (error) {
@@ -355,22 +325,18 @@ const confirmApprove = async () => {
   }
 }
 
-const loadOptions = async () => {
+const loadUsers = async () => {
   try {
-    const [lineRes, userRes] = await Promise.all([
-      deviceService.getProductionLines(),
-      userService.getList()
-    ])
-    productionLines.value = lineRes.data.production_lines || []
-    userList.value = userRes.data.users || []
+    const res = await userService.getList()
+    userList.value = res.data.users || []
   } catch (error) {
-    console.error('Load options failed:', error)
+    console.error('Load users failed:', error)
   }
 }
 
 onMounted(() => {
   loadData()
-  loadOptions()
+  loadUsers()
 })
 </script>
 
