@@ -269,7 +269,16 @@ const conversationList = computed(() => {
 })
 
 const sortedMessages = computed(() => {
-  return [...(currentConversation.value.messages || [])].sort((a, b) => 
+  const messages = [...(currentConversation.value.messages || [])]
+  const seen = new Set()
+  const uniqueMessages = messages.filter(msg => {
+    if (seen.has(msg.msg_id)) {
+      return false
+    }
+    seen.add(msg.msg_id)
+    return true
+  })
+  return uniqueMessages.sort((a, b) => 
     new Date(a.created_at) - new Date(b.created_at)
   )
 })
