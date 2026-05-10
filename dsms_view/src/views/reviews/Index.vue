@@ -28,7 +28,7 @@
           <el-table-column prop="reviewer_id" label="审查人ID" width="120" show-overflow-tooltip />
           <el-table-column prop="review_status" label="状态" width="100">
             <template #default="{ row }">
-              <el-tag :type="getStatusType(row.review_status)">
+              <el-tag :type="row.review_status ? (getStatusType(row.review_status) || 'info') : 'info'">
                 {{ getStatusText(row.review_status) }}
               </el-tag>
             </template>
@@ -229,7 +229,7 @@
             <el-input v-model="viewForm.reviewer_name" disabled />
           </el-form-item>
           <el-form-item label="任务状态">
-            <el-tag :type="getStatusType(viewForm.review_status)">
+            <el-tag :type="viewForm.review_status ? (getStatusType(viewForm.review_status) || 'info') : 'info'">
               {{ getStatusText(viewForm.review_status) }}
             </el-tag>
           </el-form-item>
