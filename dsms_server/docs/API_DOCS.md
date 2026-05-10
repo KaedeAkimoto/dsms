@@ -1791,21 +1791,23 @@ interface AuditLog {
 
 ---
 
-### 8.20 创建设备审批
+### 8.17 创建设备审批
 
 **接口**: `POST /device-approvals`
 
-**说明**: 创建设备审批记录
+**说明**: 创建新设备并发起审批流程。接口会先创建设备记录（状态为inactive），然后创建审批记录，并自动向审批人发送消息通知。
 
 **是否需要认证**: 是
 
 **请求体**:
 ```json
 {
-  "device_name": "设备名称",
-  "device_type": "设备类型",
-  "production_line_id": "uuid",
-  "device_manager": "用户uuid"
+  "device_name": "string",        // 必填，设备名称
+  "device_type": "string",        // 必填，设备类型
+  "production_line_id": "uuid",   // 必填，所属生产线ID
+  "device_manager": "uuid",       // 必填，设备管理员ID
+  "approval_by": "uuid",          // 必填，审批人ID
+  "reason": "string"              // 可选，申请原因
 }
 ```
 
@@ -1813,20 +1815,34 @@ interface AuditLog {
 ```json
 {
   "code": 0,
-  "message": "创建设备审批记录成功",
-  "data": {...}
+  "message": "审批创建成功",
+  "data": {
+    "device_approval_id": "uuid-string",
+    "device_id": "uuid-string",
+    "approver_id": "uuid-string",
+    "status": "pending",
+    "comment": null,
+    "created_at": "2024-01-01T00:00:00Z"
+  }
 }
 ```
 
 ---
 
-### 8.17 获取设备审批列表
+### 8.18 获取设备审批列表
 
 **接口**: `GET /device-approvals`
 
-**说明**: 获取设备审批列表
+**说明**: 分页获取设备审批列表，支持按状态筛选
 
 **是否需要认证**: 是
+
+**查询参数**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| skip | int | 0 | 跳过数量 |
+| limit | int | 100 | 每页数量(1-1000) |
+| status | string | 可选 | 筛选状态: pending/approved/rejected |
 
 **响应示例**:
 ```json
@@ -1835,37 +1851,53 @@ interface AuditLog {
   "message": "获取设备审批列表成功",
   "data": {
     "total": 10,
-    "pending_approvals": [...]
+    "approvals": [
+      {
+        "device_approval_id": "uuid-string",
+        "device_id": "uuid-string",
+        "approver_id": "uuid-string",
+        "status": "pending",
+        "comment": null,
+        "created_at": "2024-01-01T00:00:00Z"
+      }
+    ]
   }
 }
 ```
 
 ---
 
-### 8.18 审批设备
+### 8.19 审批设备
 
-**接口**: `PUT /device-approvals/{device_approval_id}`
+**接口**: `PUT /device-approvals/{device_approval_id}?approved=true`
 
-**说明**: 审批设备
+**说明**: 处理设备审批请求。审批通过后，设备状态会更新为active；审批拒绝后，设备保持inactive状态。
 
 **是否需要认证**: 是
 
-**路径参数**: `device_approval_id`
+**路径参数**: `device_approval_id` - 审批记录ID
 
-**请求体**: `DeviceApprovalRequest`
+**查询参数**: `approved` - 布尔值，true表示通过，false表示拒绝
 
 **响应示例**:
 ```json
 {
   "code": 0,
   "message": "设备审批成功",
-  "data": null
+  "data": {
+    "device_approval_id": "uuid-string",
+    "device_id": "uuid-string",
+    "approver_id": "uuid-string",
+    "status": "approved",
+    "comment": null,
+    "created_at": "2024-01-01T00:00:00Z"
+  }
 }
 ```
 
 ---
 
-### 8.19 获取设备状态历史
+### 8.20 获取设备状态历史
 
 **接口**: `GET /device-status-history/{device_id}`
 
