@@ -85,6 +85,7 @@ const statusPieChart = ref(null);
 const trendChart = ref(null);
 const resourceChart = ref(null);
 const lineChart = ref(null);
+const lineChartData = ref([]);
 let pieChartInstance = null;
 let trendChartInstance = null;
 let resourceChartInstance = null;
@@ -263,7 +264,7 @@ const initCharts = () => {
  },
  xAxis: {
  type: 'category',
- data: mockLineData.map(item => item.line)
+ data: lineChartData.map(item => item.line)
  },
  yAxis: {
  type: 'value'
@@ -280,7 +281,7 @@ const initCharts = () => {
  emphasis: {
  focus: 'series'
  },
- data: mockLineData.map(item => item.active),
+ data: lineChartData.map(item => item.active),
  itemStyle: { color: '#67C23A' }
  },
  {
@@ -294,7 +295,7 @@ const initCharts = () => {
  emphasis: {
  focus: 'series'
  },
- data: mockLineData.map(item => item.fault),
+ data: lineChartData.map(item => item.fault),
  itemStyle: { color: '#F56C6C' }
  },
  {
@@ -308,7 +309,7 @@ const initCharts = () => {
  emphasis: {
  focus: 'series'
  },
- data: mockLineData.map(item => item.maintenance),
+ data: lineChartData.map(item => item.maintenance),
  itemStyle: { color: '#E6A23C' }
  },
  {
@@ -322,7 +323,7 @@ const initCharts = () => {
  emphasis: {
  focus: 'series'
  },
- data: mockLineData.map(item => item.inactive),
+ data: lineChartData.map(item => item.inactive),
  itemStyle: { color: '#909399' }
  }
  ]
@@ -331,13 +332,32 @@ const initCharts = () => {
 };
 const refreshData = async () => {
   try {
-    const res = await deviceService.getList();
-    const devices = (res.data.devices || []).filter(d => d.status !== 'removed');
+    const [devicesRes, linesRes] = await Promise.all([
+      deviceService.getList(),
+      deviceService.getProductionLines({ limit: 1000 })
+    ]);
+    
+    const devices = (devicesRes.data.devices || []).filter(d => d.status !== 'removed');
+    const productionLines = linesRes.data.production_lines || [];
+    
     stats.total_count = devices.length;
     stats.online_count = devices.filter(d => d.status === 'active').length;
     stats.offline_count = devices.filter(d => d.status === 'fault').length;
     stats.inactive_count = devices.filter(d => d.status === 'inactive').length;
     stats.maintenance_count = devices.filter(d => d.status === 'maintenance').length;
+    
+    lineChartData.length = 0;
+    productionLines.forEach(line => {
+      const lineDevices = devices.filter(d => d.production_line_id === line.production_line_id);
+      lineChartData.push({
+        line: line.production_line_name || line.production_line_id,
+        active: lineDevices.filter(d => d.status === 'active').length,
+        fault: lineDevices.filter(d => d.status === 'fault').length,
+        maintenance: lineDevices.filter(d => d.status === 'maintenance').length,
+        inactive: lineDevices.filter(d => d.status === 'inactive').length
+      });
+    });
+    
  if (pieChartInstance) {
  pieChartInstance.setOption({
  series: [
@@ -352,6 +372,33 @@ const refreshData = async () => {
  ]
  });
  }
+ 
+ if (lineChartInstance) {
+ lineChartInstance.setOption({
+ xAxis: {
+ data: lineChartData.map(item => item.line)
+ },
+ series: [
+ {
+ name: '运行中',
+ data: lineChartData.map(item => item.active)
+ },
+ {
+ name: '故障',
+ data: lineChartData.map(item => item.fault)
+ },
+ {
+ name: '维护中',
+ data: lineChartData.map(item => item.maintenance)
+ },
+ {
+ name: '未激活',
+ data: lineChartData.map(item => item.inactive)
+ }
+ ]
+ });
+ }
+ 
  ElMessage.success('数据刷新成功');
  }
  catch (error) {
