@@ -51,7 +51,7 @@ class ExportService:
         "departments": Department,
         "titles": Title,
         "users": User,
-        "operation_logs": UserOperationLog,
+        "user_operation_logs": UserOperationLog,
         "user_messages": UserMessage,
         "system_messages": SystemMessage,
         "announcements": Announcement,
