@@ -35,10 +35,7 @@
         >
           <el-table-column prop="device_approval_id" label="审批ID" width="220" show-overflow-tooltip />
           <el-table-column prop="device_id" label="设备ID" width="180" show-overflow-tooltip />
-          <el-table-column prop="device_name" label="设备名称" />
-          <el-table-column prop="device_type" label="设备类型" width="120" />
-          <el-table-column prop="applicant_name" label="申请人" width="100" />
-          <el-table-column prop="apply_time" label="申请时间" />
+          <el-table-column prop="created_at" label="申请时间" />
           <el-table-column prop="status" label="状态" width="100">
             <template #default="{ row }">
               <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
@@ -260,12 +257,7 @@ const loadData = async () => {
     if (searchForm.status) params.status = searchForm.status
 
     const res = await deviceService.getApprovals(params)
-    const records = res.data.records || []
-    for (const record of records) {
-      record.apply_time = formatDateTime(record.apply_time)
-      record.approve_time = record.approve_time ? formatDateTime(record.approve_time) : '-'
-    }
-    tableData.value = records
+    tableData.value = res.data.approvals || []
     pagination.total = res.data.total || 0
   } catch (error) {
     console.error('Load approvals failed:', error)
