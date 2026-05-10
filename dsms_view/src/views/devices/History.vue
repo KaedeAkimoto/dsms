@@ -13,8 +13,9 @@
       <div class="filter-bar">
         <el-select v-model="filterStatus" placeholder="全部状态" clearable class="filter-select">
           <el-option label="全部" value="" />
-          <el-option label="在线" value="online" />
-          <el-option label="离线" value="offline" />
+          <el-option label="运行中" value="active" />
+          <el-option label="故障" value="fault" />
+          <el-option label="维护中" value="maintenance" />
           <el-option label="未激活" value="inactive" />
           <el-option label="已删除" value="removed" />
         </el-select>
@@ -35,12 +36,16 @@
           <span class="stat-value">{{ totalCount }}</span>
         </div>
         <div class="stat-item online">
-          <span class="stat-label">在线</span>
-          <span class="stat-value">{{ onlineCount }}</span>
+          <span class="stat-label">运行中</span>
+          <span class="stat-value">{{ activeCount }}</span>
         </div>
-        <div class="stat-item offline">
-          <span class="stat-label">离线</span>
-          <span class="stat-value">{{ offlineCount }}</span>
+        <div class="stat-item fault">
+          <span class="stat-label">故障</span>
+          <span class="stat-value">{{ faultCount }}</span>
+        </div>
+        <div class="stat-item maintenance">
+          <span class="stat-label">维护中</span>
+          <span class="stat-value">{{ maintenanceCount }}</span>
         </div>
         <div class="stat-item inactive">
           <span class="stat-label">未激活</span>
@@ -245,8 +250,8 @@ const editRules = {
 }
 
 const totalCount = computed(() => devices.value.length)
-const onlineCount = computed(() => devices.value.filter(d => d.status === 'active').length)
-const offlineCount = computed(() => devices.value.filter(d => d.status === 'fault').length)
+const activeCount = computed(() => devices.value.filter(d => d.status === 'active').length)
+const faultCount = computed(() => devices.value.filter(d => d.status === 'fault').length)
 const inactiveCount = computed(() => devices.value.filter(d => d.status === 'inactive').length)
 const maintenanceCount = computed(() => devices.value.filter(d => d.status === 'maintenance').length)
 const removedCount = computed(() => devices.value.filter(d => d.status === 'removed').length)
@@ -459,9 +464,10 @@ loadData()
 }
 
 .stat-item.online .stat-value { color: #67C23A; }
-.stat-item.offline .stat-value { color: #E6A23C; }
+.stat-item.fault .stat-value { color: #F56C6C; }
+.stat-item.maintenance .stat-value { color: #E6A23C; }
 .stat-item.inactive .stat-value { color: #909399; }
-.stat-item.removed .stat-value { color: #F56C6C; }
+.stat-item.removed .stat-value { color: #909399; }
 
 .cards-container {
   display: grid;
@@ -477,11 +483,15 @@ loadData()
   border-left: 4px solid transparent;
 }
 
-.device-card.online {
+.device-card.active {
   border-left-color: #67C23A;
 }
 
-.device-card.offline {
+.device-card.fault {
+  border-left-color: #F56C6C;
+}
+
+.device-card.maintenance {
   border-left-color: #E6A23C;
 }
 
@@ -490,7 +500,7 @@ loadData()
 }
 
 .device-card.removed {
-  border-left-color: #F56C6C;
+  border-left-color: #909399;
 }
 
 .device-card:hover {
@@ -512,9 +522,10 @@ loadData()
 }
 
 .status-dot.online { background: #67C23A; }
-.status-dot.offline { background: #E6A23C; }
+.status-dot.fault { background: #F56C6C; }
+.status-dot.maintenance { background: #E6A23C; }
 .status-dot.inactive { background: #909399; }
-.status-dot.removed { background: #F56C6C; }
+.status-dot.removed { background: #909399; }
 
 .device-name {
   flex: 1;
