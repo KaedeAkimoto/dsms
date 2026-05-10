@@ -402,9 +402,8 @@ const refreshData = async () => {
  ElMessage.success('数据刷新成功');
  }
  catch (error) {
- console.error('Refresh data failed:', error);
- ElMessage.error('数据刷新失败');
- }
+  ElMessage.error('数据刷新失败');
+}
 };
 const handleResize = () => {
  pieChartInstance?.resize();
