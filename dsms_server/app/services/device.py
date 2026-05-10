@@ -427,6 +427,8 @@ class DeviceApprovalService:
 
     @staticmethod
     def process_approval(device_approval_id: UUID, approved: bool) -> Optional[DeviceApproval]:
+        from sqlalchemy.orm import joinedload
+        
         with db_config.get_session() as session:
             approval = session.get(DeviceApproval, device_approval_id)
             if not approval:
@@ -437,8 +439,14 @@ class DeviceApprovalService:
 
             session.add(approval)
             session.commit()
-            session.refresh(approval)
-            return approval
+            
+            # 重新查询并预加载设备关系
+            result = session.execute(
+                select(DeviceApproval)
+                .options(joinedload(DeviceApproval.devices))
+                .where(DeviceApproval.device_approval_id == device_approval_id)
+            )
+            return result.scalars().first()
 
 
 class DeviceStatusHistoryService:
