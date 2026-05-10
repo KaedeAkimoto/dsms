@@ -372,20 +372,34 @@ class DeviceApprovalService:
             session.add(approval)
             session.commit()
             session.refresh(approval)
+            
+            # 如果提供了设备ID，关联设备和审批
+            if device_id:
+                device = session.get(Device, device_id)
+                if device:
+                    device.device_approval_id = approval.device_approval_id
+                    session.commit()
+                    session.refresh(approval)
+            
             return approval
 
     @staticmethod
     def get_approval_by_id(device_approval_id: UUID) -> Optional[DeviceApproval]:
+        from sqlalchemy import select
+        from sqlalchemy.orm import joinedload
+        
         with db_config.get_session() as session:
-            approval = session.get(DeviceApproval, device_approval_id)
-            if approval:
-                session.refresh(approval)
-            return approval
+            result = session.execute(
+                select(DeviceApproval)
+                .options(joinedload(DeviceApproval.devices))
+                .where(DeviceApproval.device_approval_id == device_approval_id)
+            )
+            return result.scalars().first()
 
     @staticmethod
     def get_all_approvals(skip: int = 0, limit: int = 100, status: Optional[str] = None) -> List[DeviceApproval]:
         with db_config.get_session() as session:
-            query = select(DeviceApproval)
+            query = select(DeviceApproval).options(joinedload(DeviceApproval.devices))
             if status:
                 query = query.where(DeviceApproval.approval_status == status)
             query = query.offset(skip).limit(limit)

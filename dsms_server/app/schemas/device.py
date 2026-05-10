@@ -134,7 +134,7 @@ class DeviceApprovalRequest(BaseModel):
 
 class DeviceApprovalResponse(BaseModel):
     device_approval_id: UUID
-    device_id: UUID
+    device_id: Optional[UUID] = None
     approver_id: UUID
     status: str
     comment: Optional[str] = None
@@ -142,12 +142,15 @@ class DeviceApprovalResponse(BaseModel):
 
     @classmethod
     def from_orm(cls, obj):
+        # 从关联的设备列表中获取第一个设备ID
+        device_id = str(obj.devices[0].device_id) if obj.devices and len(obj.devices) > 0 else None
+        
         return cls.model_validate({
             'device_approval_id': str(obj.device_approval_id),
-            'device_id': str(obj.device_id),
-            'approver_id': str(obj.approver_id),
-            'status': obj.status,
-            'comment': obj.comment,
+            'device_id': device_id,
+            'approver_id': str(obj.approval_by),
+            'status': obj.approval_status,
+            'comment': getattr(obj, 'comment', None),
             'created_at': convert_datetime_to_string(obj.created_at) if hasattr(obj, 'created_at') and obj.created_at else None,
         })
 
