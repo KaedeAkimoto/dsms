@@ -77,8 +77,15 @@
         <el-form-item label="设备类型" prop="device_type">
           <el-input v-model="createForm.device_type" placeholder="请输入设备类型" />
         </el-form-item>
-        <el-form-item label="生产线ID" prop="production_line_id">
-          <el-input v-model="createForm.production_line_id" placeholder="请输入生产线ID" />
+        <el-form-item label="生产线" prop="production_line_id">
+          <el-select v-model="createForm.production_line_id" placeholder="请选择生产线" style="width: 100%;">
+            <el-option 
+              v-for="line in productionLines" 
+              :key="line.production_line_id" 
+              :label="line.production_line_name + ' (' + line.production_line_id + ')'" 
+              :value="line.production_line_id" 
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="设备管理员" prop="device_manager">
           <el-select v-model="createForm.device_manager" placeholder="请选择设备管理员" style="width: 100%;">
@@ -184,7 +191,8 @@ const approveLoading = ref(false)
 const approveAction = ref('approve')
 const currentApprovalId = ref(null)
 
-// 用户列表（用于下拉选择）
+// 生产线列表和用户列表（用于下拉选择）
+const productionLines = ref([])
 const userList = ref([])
 
 const createFormRef = ref(null)
@@ -347,18 +355,22 @@ const confirmApprove = async () => {
   }
 }
 
-const loadUsers = async () => {
+const loadOptions = async () => {
   try {
-    const res = await userService.getList()
-    userList.value = res.data.users || []
+    const [lineRes, userRes] = await Promise.all([
+      deviceService.getProductionLines(),
+      userService.getList()
+    ])
+    productionLines.value = lineRes.data.production_lines || []
+    userList.value = userRes.data.users || []
   } catch (error) {
-    console.error('Load users failed:', error)
+    console.error('Load options failed:', error)
   }
 }
 
 onMounted(() => {
   loadData()
-  loadUsers()
+  loadOptions()
 })
 </script>
 

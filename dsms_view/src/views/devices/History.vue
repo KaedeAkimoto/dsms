@@ -207,8 +207,15 @@
         <el-form-item label="设备类型" prop="device_type">
           <el-input v-model="editForm.device_type" placeholder="请输入设备类型" />
         </el-form-item>
-        <el-form-item label="生产线ID" prop="production_line_id">
-          <el-input v-model="editForm.production_line_id" placeholder="请输入生产线ID" />
+        <el-form-item label="生产线" prop="production_line_id">
+          <el-select v-model="editForm.production_line_id" placeholder="请选择生产线" style="width: 100%;">
+            <el-option 
+              v-for="line in productionLines" 
+              :key="line.production_line_id" 
+              :label="line.production_line_name + ' (' + line.production_line_id + ')'" 
+              :value="line.production_line_id" 
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="IP地址" prop="ip_addr">
           <el-input v-model="editForm.ip_addr" placeholder="请输入IP地址" />
@@ -238,6 +245,10 @@ const selectedDevice = ref(null)
 const historyData = ref([])
 
 const editFormRef = ref(null)
+
+// 生产线列表（用于下拉选择）
+const productionLines = ref([])
+
 const editForm = reactive({
   device_name: '',
   device_type: '',
@@ -388,7 +399,17 @@ const handleDelete = async (device) => {
   }
 }
 
+const loadProductionLines = async () => {
+  try {
+    const res = await deviceService.getProductionLines()
+    productionLines.value = res.data.production_lines || []
+  } catch (error) {
+    console.error('Load production lines failed:', error)
+  }
+}
+
 loadData()
+loadProductionLines()
 </script>
 
 <style scoped>
