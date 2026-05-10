@@ -105,10 +105,10 @@ const mockResourceData = [
  { name: '网络连接率', value: 94 }
 ];
 const mockLineData = [
- { line: 'A生产线', online: 12, offline: 3, inactive: 1 },
- { line: 'B生产线', online: 8, offline: 2, inactive: 0 },
- { line: 'C生产线', online: 15, offline: 1, inactive: 2 },
- { line: 'D生产线', online: 10, offline: 4, inactive: 1 }
+ { line: 'A生产线', active: 12, fault: 3, maintenance: 1, inactive: 1 },
+ { line: 'B生产线', active: 8, fault: 2, maintenance: 0, inactive: 0 },
+ { line: 'C生产线', active: 15, fault: 1, maintenance: 2, inactive: 2 },
+ { line: 'D生产线', active: 10, fault: 4, maintenance: 1, inactive: 1 }
 ];
 const initCharts = () => {
  if (statusPieChart.value) {
@@ -253,7 +253,7 @@ const initCharts = () => {
  }
  },
  legend: {
- data: ['在线', '离线', '未激活']
+ data: ['运行中', '故障', '维护中', '未激活']
  },
  grid: {
  left: '3%',
@@ -270,7 +270,7 @@ const initCharts = () => {
  },
  series: [
  {
- name: '在线',
+ name: '运行中',
  type: 'bar',
  stack: 'total',
  label: {
@@ -280,11 +280,11 @@ const initCharts = () => {
  emphasis: {
  focus: 'series'
  },
- data: mockLineData.map(item => item.online),
+ data: mockLineData.map(item => item.active),
  itemStyle: { color: '#67C23A' }
  },
  {
- name: '离线',
+ name: '故障',
  type: 'bar',
  stack: 'total',
  label: {
@@ -294,7 +294,21 @@ const initCharts = () => {
  emphasis: {
  focus: 'series'
  },
- data: mockLineData.map(item => item.offline),
+ data: mockLineData.map(item => item.fault),
+ itemStyle: { color: '#F56C6C' }
+ },
+ {
+ name: '维护中',
+ type: 'bar',
+ stack: 'total',
+ label: {
+ show: true,
+ position: 'inside'
+ },
+ emphasis: {
+ focus: 'series'
+ },
+ data: mockLineData.map(item => item.maintenance),
  itemStyle: { color: '#E6A23C' }
  },
  {
