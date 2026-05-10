@@ -156,7 +156,6 @@ const loadStats = async () => {
     }
 
     const res = await detectionService.getTrend(params)
-    console.log('检测趋势接口返回:', JSON.stringify(res, null, 2))
     
     if (res.data && Array.isArray(res.data)) {
       stats.total_count = res.data.reduce((sum, item) => sum + (item.detect_sum || 0), 0)
@@ -176,7 +175,6 @@ const loadDefectTypeChart = async () => {
     if (searchForm.end_time) params.end_time = searchForm.end_time
 
     const res = await detectionService.getDefectStats(params)
-    console.log('缺陷类型图表接口返回类型:', typeof res.data, Array.isArray(res.data))
     
     let data = []
     if (Array.isArray(res.data)) {
@@ -314,7 +312,6 @@ const loadTrendChart = async () => {
     }
 
     const res = await detectionService.getTrend(params)
-    console.log('趋势接口返回:', res.data)
     const data = Array.isArray(res.data) ? res.data : (res.data.trend || [])
 
     if (trendChartInstance) {

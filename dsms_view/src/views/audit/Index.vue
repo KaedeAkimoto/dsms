@@ -141,9 +141,7 @@ const loadData = async () => {
       start_date: searchForm.start_date || undefined,
       end_date: searchForm.end_date || undefined
     }
-    console.log('审计日志请求参数:', params)
     const res = await auditService.getLogs(params)
-    console.log('审计日志返回数据:', res)
     const logs = res.data.logs || []
     for (const log of logs) {
       log.created_at = formatDateTime(log.created_at)

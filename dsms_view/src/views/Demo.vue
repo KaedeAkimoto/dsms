@@ -221,7 +221,6 @@ const connectWebSocket = () => {
   
   try {
     ws = new WebSocket(wsUrl)
-    console.log('WebSocket 对象已创建，readyState:', ws.readyState)
     
     ws.onopen = () => {
       isConnected.value = true
@@ -232,7 +231,6 @@ const connectWebSocket = () => {
     }
 
     ws.onmessage = (event) => {
-      console.log('WebSocket 收到消息:', event.data)
       try {
         const data = JSON.parse(event.data)
         handleMessage(data)
@@ -335,7 +333,6 @@ const drawPreviewDetections = (detections) => {
   const video = videoRef.value
   
   if (!canvas || !img || !video) {
-    console.log('绘制条件不满足:', { canvas: !!canvas, img: !!img, video: !!video })
     return
   }
 
@@ -352,18 +349,12 @@ const drawPreviewDetections = (detections) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
 
   if (!detections || detections.length === 0) {
-    console.log('没有检测结果')
     return
   }
 
   // 计算缩放比例（检测框坐标是相对于原始视频尺寸的）
   const scaleX = displayWidth / video.videoWidth
   const scaleY = displayHeight / video.videoHeight
-
-  console.log('绘制检测结果:', detections.length, '个缺陷')
-  console.log('缩放比例:', scaleX, scaleY)
-  console.log('视频尺寸:', video.videoWidth, video.videoHeight)
-  console.log('显示尺寸:', displayWidth, displayHeight)
 
   detections.forEach((det, index) => {
     const x = (det.x || det.bbox?.[0] || 0) * scaleX
@@ -372,8 +363,6 @@ const drawPreviewDetections = (detections) => {
     const height = (det.height || det.bbox?.[3] || 0) * scaleY
     const className = det.class_name || det.name || 'defect'
     const confidence = det.confidence || 0
-
-    console.log(`缺陷 ${index + 1}: ${className}, 位置: (${x}, ${y}), 大小: ${width}x${height}`)
 
     ctx.strokeStyle = '#ef4444'
     ctx.lineWidth = 2
