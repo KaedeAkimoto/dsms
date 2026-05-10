@@ -141,7 +141,6 @@ class DeviceApprovalResponse(BaseModel):
     approver_name: Optional[str] = None
     applicant_name: Optional[str] = None
     status: str
-    reason: Optional[str] = None
     comment: Optional[str] = None
     approve_comment: Optional[str] = None
     created_at: Optional[str] = None
@@ -174,7 +173,6 @@ class DeviceApprovalResponse(BaseModel):
             'approver_name': approver_name,
             'applicant_name': applicant_name,
             'status': obj.approval_status,
-            'reason': getattr(obj, 'reason', None),
             'comment': getattr(obj, 'comment', None),
             'approve_comment': getattr(obj, 'approve_comment', None),
             'created_at': convert_datetime_to_string(obj.created_at) if hasattr(obj, 'created_at') and obj.created_at else None,
