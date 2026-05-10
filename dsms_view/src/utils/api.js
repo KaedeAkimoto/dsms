@@ -25,6 +25,18 @@ api.interceptors.request.use(
   }
 )
 
+const isTokenExpired = (error) => {
+  if (error.response) {
+    const { status, data } = error.response
+    if (status === 401) return true
+    if (data && data.code === 401) return true
+    if (data && (data.message?.includes('token') || data.message?.includes('登录') || data.message?.includes('过期'))) return true
+  }
+  if (error.message?.includes('timeout') || error.message?.includes('Network')) return false
+  if (!error.response && error.request) return false
+  return false
+}
+
 api.interceptors.response.use(
   (response) => {
     const res = response.data
@@ -34,6 +46,7 @@ api.interceptors.response.use(
         localStorage.removeItem('access_token')
         localStorage.removeItem('user')
         router.push('/login')
+        ElMessage.error('登录已过期，请重新登录')
       }
       return Promise.reject(new Error(res.message || '请求失败'))
     }
@@ -42,22 +55,31 @@ api.interceptors.response.use(
   (error) => {
     if (error.response) {
       const { status, data } = error.response
-      if (status === 401) {
+      if (status === 401 || (data && data.code === 401)) {
         localStorage.removeItem('access_token')
         localStorage.removeItem('user')
         router.push('/login')
         ElMessage.error('登录已过期，请重新登录')
       } else if (status === 403) {
-        ElMessage.error(data.message || '权限不足')
+        ElMessage.error(data?.message || '权限不足')
       } else if (status === 404) {
-        ElMessage.error(data.message || '资源不存在')
+        ElMessage.error(data?.message || '资源不存在')
       } else if (status >= 500) {
         ElMessage.error('服务器错误')
       } else {
-        ElMessage.error(data.message || '请求失败')
+        ElMessage.error(data?.message || '请求失败')
+      }
+    } else if (error.request) {
+      if (isTokenExpired(error)) {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('user')
+        router.push('/login')
+        ElMessage.error('登录已过期，请重新登录')
+      } else {
+        ElMessage.error('网络错误，请检查网络连接')
       }
     } else {
-      ElMessage.error('网络错误')
+      ElMessage.error('请求配置错误')
     }
     return Promise.reject(error)
   }
