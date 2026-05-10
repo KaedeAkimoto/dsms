@@ -160,10 +160,10 @@ class DeviceApprovalResponse(BaseModel):
             device_type = device.device_type
         
         # 获取申请人姓名
-        applicant_name = obj.sender.username if obj.sender else None
+        applicant_name = obj.sender.user_name if obj.sender else None
         
         # 获取审批人姓名
-        approver_name = obj.approver.username if obj.approver else None
+        approver_name = obj.approver.user_name if obj.approver else None
         
         return cls.model_validate({
             'device_approval_id': str(obj.device_approval_id),
