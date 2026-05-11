@@ -149,10 +149,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter, RouterView } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
+import { sseService } from '../services/sse'
 import {
   HomeFilled,
   User,
@@ -186,6 +187,7 @@ const handleCommand = (command) => {
       cancelButtonText: '取消',
       type: 'warning'
     }).then(() => {
+      sseService.disconnect()
       authStore.logout()
       router.push('/login')
     }).catch(() => {})
@@ -193,6 +195,17 @@ const handleCommand = (command) => {
     router.push('/profile')
   }
 }
+
+onMounted(() => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  if (user.user_id) {
+    sseService.connect(user.user_id)
+  }
+})
+
+onUnmounted(() => {
+  sseService.disconnect()
+})
 </script>
 
 <style scoped>

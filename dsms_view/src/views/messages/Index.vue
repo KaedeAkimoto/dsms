@@ -141,7 +141,7 @@
 
 <script setup>
 defineOptions({ name: 'Messages' })
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Warning, User, ChatDotRound } from '@element-plus/icons-vue'
 import { messageService } from '../../services/message'
@@ -771,7 +771,24 @@ onMounted(async () => {
   setTimeout(() => {
     retryPendingMessages()
   }, 1000)
+
+  // 监听消息刷新事件
+  window.addEventListener('dsms_message_refresh', handleMessageRefresh)
 })
+
+onUnmounted(() => {
+  // 移除消息刷新事件监听
+  window.removeEventListener('dsms_message_refresh', handleMessageRefresh)
+})
+
+const handleMessageRefresh = async () => {
+  console.log('Message refresh triggered')
+  try {
+    await loadAllMessages()
+  } catch (error) {
+    console.error('Refresh messages failed:', error)
+  }
+}
 </script>
 
 <style scoped>
