@@ -4,6 +4,21 @@
       <template #header>
         <div class="card-header">
           <span>数据导出</span>
+          <div class="format-select">
+            <span class="text-gray">导出格式：</span>
+            <el-select 
+              v-model="selectedFormat" 
+              style="width: 120px;"
+              size="small"
+            >
+              <el-option 
+                v-for="format in exportFormats" 
+                :key="format.value" 
+                :label="format.label" 
+                :value="format.value" 
+              />
+            </el-select>
+          </div>
         </div>
       </template>
 
@@ -75,7 +90,13 @@ const tableDescriptions = {
   announcement_readers: '公告阅读记录表'
 }
 
-const exportTables = ref([])
+const exportFormats = [
+  { label: 'JSON', value: 'json', ext: '.json' },
+  { label: 'CSV', value: 'csv', ext: '.csv' },
+  { label: 'Excel', value: 'excel', ext: '.xlsx' }
+]
+
+const selectedFormat = ref('json')
 
 const loadExportTables = async () => {
   loading.value = true
@@ -116,17 +137,16 @@ const loadExportTables = async () => {
 const handleExport = async (tableName) => {
   exportingTable.value = tableName
   try {
-    console.log(`[Export] 开始导出表: ${tableName}`)
-    const res = await exportService.exportTable(tableName)
+    const formatInfo = exportFormats.find(f => f.value === selectedFormat.value)
+    console.log(`[Export] 开始导出表: ${tableName}，格式: ${selectedFormat.value}`)
+    const res = await exportService.exportTable(tableName, selectedFormat.value)
     console.log(`[Export] 导出表 ${tableName} 响应状态:`, res.status)
-    console.log(`[Export] 响应数据类型:`, typeof res.data)
-    console.log(`[Export] 响应数据长度:`, res.data?.size || res.data?.length || 0)
     
-    const blob = new Blob([res.data], { type: 'application/json;charset=utf-8;' })
+    const blob = new Blob([res.data], { type: getContentType(selectedFormat.value) })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `${tableName}_${new Date().toISOString().split('T')[0]}.json`
+    link.download = `${tableName}_${new Date().toISOString().split('T')[0]}${formatInfo.ext}`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -146,17 +166,16 @@ const handleExport = async (tableName) => {
 const handleBatchExport = async () => {
   exportingAll.value = true
   try {
-    console.log('[Export] 开始导出全部数据...')
-    const res = await exportService.exportAllTables()
+    const formatInfo = exportFormats.find(f => f.value === selectedFormat.value)
+    console.log('[Export] 开始导出全部数据，格式:', selectedFormat.value)
+    const res = await exportService.exportAllTables(selectedFormat.value)
     console.log('[Export] 导出全部数据响应状态:', res.status)
-    console.log('[Export] 响应数据类型:', typeof res.data)
-    console.log('[Export] 响应数据长度:', res.data?.size || res.data?.length || 0)
     
-    const blob = new Blob([res.data], { type: 'application/json;charset=utf-8;' })
+    const blob = new Blob([res.data], { type: getContentType(selectedFormat.value) })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `all_data_${new Date().toISOString().split('T')[0]}.json`
+    link.download = `all_data_${new Date().toISOString().split('T')[0]}${formatInfo.ext}`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -167,10 +186,22 @@ const handleBatchExport = async () => {
   } catch (error) {
     console.error('[Export] 导出全部数据失败:', error)
     console.error('[Export] 错误详情:', error.response?.data || error.message)
-    console.error('[Export] 错误堆栈:', error.stack)
     ElMessage.error('导出全部数据失败')
   } finally {
     exportingAll.value = false
+  }
+}
+
+const getContentType = (format) => {
+  switch (format) {
+    case 'json':
+      return 'application/json;charset=utf-8;'
+    case 'csv':
+      return 'text/csv;charset=utf-8;'
+    case 'excel':
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    default:
+      return 'application/octet-stream'
   }
 }
 
@@ -188,6 +219,12 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.format-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .table-wrapper {

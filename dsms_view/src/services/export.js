@@ -29,15 +29,17 @@ export const exportService = {
     return api.get('/export/tables')
   },
   
-  exportTable(tableName) {
+  exportTable(tableName, format = 'json') {
     return downloadApi.get(`/export/${tableName}`, {
-      responseType: 'blob'
+      responseType: 'blob',
+      params: { format }
     })
   },
   
-  exportAllTables() {
+  exportAllTables(format = 'json') {
     return downloadApi.get('/export/all', {
-      responseType: 'blob'
+      responseType: 'blob',
+      params: { format }
     })
   }
 }
