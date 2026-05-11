@@ -1,15 +1,16 @@
 import base64
 from typing import Optional, List, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
 from uuid import UUID
 
 
 def convert_datetime_to_string(dt: Optional[datetime]) -> Optional[str]:
-    """将 datetime 转换为 ISO 格式字符串"""
+    """将 datetime 转换为东八区 ISO 格式字符串"""
     if dt is None:
         return None
-    return dt.isoformat()
+    # 转换为东八区时间
+    return (dt + timedelta(hours=8)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+08:00'
 
 
 class DefectTypeResponse(BaseModel):

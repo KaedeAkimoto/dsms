@@ -8,7 +8,7 @@ import asyncio
 import json
 import base64
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 from uuid import UUID, uuid4
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
@@ -21,6 +21,7 @@ from app.models import Device, User, DetectionRecord, DefectDetail, ReviewTask, 
 from app.core.system_roles import SystemRole
 from app.services.yolo import yolo_detector
 from app.services.message import SystemMessageService
+from app.core.connection_manager import sse_connection_manager
 from app.utils.logger import get_logger
 
 router = APIRouter()
@@ -146,6 +147,49 @@ def get_device_info(device_id: str) -> tuple:
         if device:
             return device.device_name, device.device_manager
         return None, None
+
+
+async def notify_device_status_alert(device_id: str, status: str, status_data: dict):
+    """设备状态异常时通知相关用户"""
+    device_name, manager_id = get_device_info(device_id)
+    
+    if not manager_id:
+        logger.warning(f"No manager found for device {device_id}, cannot send status alert")
+        return
+    
+    # 构建通知消息内容
+    status_desc = {
+        "maintenance": "维护中",
+        "error": "故障",
+        "offline": "离线",
+        "warning": "警告"
+    }.get(status, status)
+    
+    message_content = f"【设备状态异常】设备 {device_name or device_id} 当前状态: {status_desc}"
+    
+    if status_data:
+        if "temperature" in status_data:
+            message_content += f"，温度: {status_data['temperature']}°C"
+        if "cpu_usage" in status_data:
+            message_content += f"，CPU使用率: {status_data['cpu_usage']}%"
+    
+    # 创建系统消息
+    SystemMessageService.create_message(manager_id, message_content)
+    logger.info(f"Created device status alert message for manager {manager_id}")
+    
+    # 通过WebSocket实时通知在线用户
+    if sse_connection_manager.is_user_online(manager_id):
+        await sse_connection_manager.send_personal_message({
+            "type": "device_status_alert",
+            "device_id": device_id,
+            "device_name": device_name,
+            "status": status,
+            "status_description": status_desc,
+            "status_data": status_data,
+            "message": message_content,
+            "timestamp": (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+08:00'
+        }, manager_id)
+        logger.info(f"Sent real-time device status alert to manager {manager_id}")
 
 
 def generate_batch_id() -> str:
@@ -364,6 +408,12 @@ async def detection_websocket(
                 elif message.get("type") == "status":
                     status_data = message.get("data", {})
                     status_manager.update_status(device_id, status_data)
+                    
+                    # 检查设备状态是否异常
+                    device_status = status_data.get("status", "unknown")
+                    if device_status != "active":
+                        await notify_device_status_alert(device_id, device_status, status_data)
+                    
                     await websocket.send_json({
                         "type": "status_ack",
                         "timestamp": datetime.now(timezone.utc).isoformat()
@@ -409,7 +459,7 @@ async def get_detection_stats(device_id: str):
                     "detect_count": r.detect_count,
                     "pass_count": r.pass_count,
                     "detect_info": r.detect_info,
-                    "latest_upload_at": r.latest_upload_at.isoformat() if r.latest_upload_at else None
+                    "latest_upload_at": (r.latest_upload_at + timedelta(hours=8)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+08:00' if r.latest_upload_at else None
                 }
                 for r in records
             ]

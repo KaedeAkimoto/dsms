@@ -156,13 +156,31 @@ class DeviceSimulator:
                 return self.generate_monochrome_image()
 
     def generate_random_status(self) -> dict:
-        """生成随机设备状态"""
+        """生成随机设备状态（包含异常状态测试）"""
+        # 随机选择状态，增加异常状态的概率用于测试
+        status_prob = random.random()
+        if status_prob < 0.15:  # 15% 概率模拟异常状态
+            status = random.choice(["maintenance", "error", "warning"])
+        else:
+            status = "active"
+        
+        # 根据状态设置不同的参数值
+        if status == "error":
+            temperature = round(random.uniform(70, 90), 1)
+            cpu_usage = round(random.uniform(85, 100), 2)
+        elif status == "warning":
+            temperature = round(random.uniform(50, 65), 1)
+            cpu_usage = round(random.uniform(75, 90), 2)
+        else:
+            temperature = round(random.uniform(35, 45), 1)
+            cpu_usage = round(random.uniform(20, 85), 2)
+        
         return {
-            "status": "active" if random.random() > 0.05 else "maintenance",
-            "cpu_usage": round(random.uniform(20, 85), 2),
+            "status": status,
+            "cpu_usage": cpu_usage,
             "memory_usage": round(random.uniform(40, 80), 2),
             "disk_usage": round(random.uniform(50, 85), 2),
-            "temperature": round(random.uniform(35, 45), 1),
+            "temperature": temperature,
             "ip_address": self.device_status["ip_address"],
             "firmware_version": self.device_status["firmware_version"]
         }
@@ -187,10 +205,12 @@ class DeviceSimulator:
 
         try:
             image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+            # 使用东八区时间（UTC+8）
+            timestamp = (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+08:00'
             message = json.dumps({
                 "type": "image",
                 "data": image_base64,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": timestamp
             })
             await self.websocket.send(message)
             logger.debug("图片已发送")
@@ -209,10 +229,12 @@ class DeviceSimulator:
 
         try:
             status_data = self.generate_random_status()
+            # 使用东八区时间（UTC+8）
+            timestamp = (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+08:00'
             message = json.dumps({
                 "type": "status",
                 "data": status_data,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": timestamp
             })
             await self.websocket.send(message)
             logger.info(f"状态已发送: {status_data['status']}")
@@ -229,9 +251,11 @@ class DeviceSimulator:
             return
 
         try:
+            # 使用东八区时间（UTC+8）
+            timestamp = (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+08:00'
             message = json.dumps({
                 "type": "ping",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": timestamp
             })
             await self.websocket.send(message)
             logger.debug("心跳已发送")
