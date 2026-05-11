@@ -93,10 +93,14 @@
             <el-menu-item index="/messages">我的消息</el-menu-item>
             <el-menu-item index="/announcements">公告管理</el-menu-item>
           </el-sub-menu>
-          <el-menu-item index="/audit-logs">
-            <el-icon><Document /></el-icon>
-            <template #title>审计日志</template>
-          </el-menu-item>
+          <el-sub-menu index="/system-functions">
+            <template #title>
+              <el-icon><Database /></el-icon>
+              <span>系统功能</span>
+            </template>
+            <el-menu-item index="/audit-logs">审计日志</el-menu-item>
+            <el-menu-item index="/export">数据导出</el-menu-item>
+          </el-sub-menu>
         </el-menu>
       </el-aside>
       <el-container>
@@ -159,7 +163,8 @@ import {
   Document,
   Fold,
   Expand,
-  ArrowDown
+  ArrowDown,
+  Database
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

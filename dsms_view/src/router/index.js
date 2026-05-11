@@ -162,7 +162,13 @@ const routes = [
         path: 'audit-logs',
         name: 'AuditLogs',
         component: () => import('../views/audit/Index.vue'),
-        meta: { title: '审计日志' }
+        meta: { title: '审计日志', parent: '系统功能' }
+      },
+      {
+        path: 'export',
+        name: 'Export',
+        component: () => import('../views/export/Index.vue'),
+        meta: { title: '数据导出', parent: '系统功能' }
       },
       {
         path: 'profile',
