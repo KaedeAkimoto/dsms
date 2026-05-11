@@ -310,6 +310,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { reviewService } from '../../services/review'
 import { detectionService } from '../../services/detection'
 import { useDefectTypeStore } from '../../stores/defectType'
+import { useAuthStore } from '../../stores/auth'
 import { formatDateTime } from '../../utils/date'
 
 const loading = ref(false)
