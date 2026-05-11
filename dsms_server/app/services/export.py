@@ -115,7 +115,14 @@ class ExportService:
 
         writer.writeheader()
         for row in data:
-            writer.writerow(row)
+            # 处理二进制数据
+            processed_row = {}
+            for key, value in row.items():
+                if isinstance(value, bytes):
+                    processed_row[key] = "(二进制数据，已跳过)"
+                else:
+                    processed_row[key] = value
+            writer.writerow(processed_row)
 
         return output.getvalue()
 
@@ -197,6 +204,8 @@ class ExportService:
                     value = value.isoformat() if hasattr(value, 'isoformat') else str(value)
                 elif isinstance(value, (list, dict)):
                     value = json.dumps(value, default=str) if value else ""
+                elif isinstance(value, bytes):
+                    value = "(二进制数据，已跳过)"
                 ws.cell(row=row_idx, column=col_idx, value=value)
 
         for col_idx in range(1, len(headers) + 1):
