@@ -131,11 +131,15 @@ class DeviceSimulator:
         logger.info(f"已加载 {len(self.image_files)} 张图片")
 
     def get_next_image(self) -> Optional[bytes]:
-        """获取下一张图片数据（99.8%概率返回正常图片，0.2%概率返回全黑/全白图片）"""
-        # 99.8%概率返回正常图片
+        """获取下一张图片数据（99.8%概率返回正常图片，0.2%概率返回有缺陷图片）"""
+        # 99.8%概率返回生成的全黑/全白图片（模拟正常产品）
         if random.random() < 0.998:
+            return self.generate_monochrome_image()
+        else:
+            # 0.2%概率返回文件夹里的有缺陷图片
             if not self.image_files:
-                return None
+                logger.debug("没有缺陷图片，生成单色图片")
+                return self.generate_monochrome_image()
 
             if self.current_image_index >= len(self.image_files):
                 self.current_image_index = 0
@@ -143,16 +147,13 @@ class DeviceSimulator:
             image_path = self.image_files[self.current_image_index]
             self.current_image_index += 1
 
+            logger.debug(f"发送有缺陷图片: {image_path}")
             try:
                 with open(image_path, 'rb') as f:
                     return f.read()
             except Exception as e:
                 logger.error(f"读取图片失败 {image_path}: {e}")
-                return None
-        else:
-            # 0.2%概率返回全黑或全白图片
-            logger.debug("触发异常图片模拟")
-            return self.generate_monochrome_image()
+                return self.generate_monochrome_image()
 
     def generate_random_status(self) -> dict:
         """生成随机设备状态"""
