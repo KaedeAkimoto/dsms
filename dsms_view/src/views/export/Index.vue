@@ -120,7 +120,7 @@ const handleExport = async (tableName) => {
     const res = await exportService.exportTable(tableName)
     console.log(`[Export] 导出表 ${tableName} 响应状态:`, res.status)
     console.log(`[Export] 响应数据类型:`, typeof res.data)
-    console.log(`[Export] 响应数据长度:`, res.data?.length || 0)
+    console.log(`[Export] 响应数据长度:`, res.data?.size || res.data?.length || 0)
     
     const blob = new Blob([res.data], { type: 'application/json;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -150,7 +150,7 @@ const handleBatchExport = async () => {
     const res = await exportService.exportAllTables()
     console.log('[Export] 导出全部数据响应状态:', res.status)
     console.log('[Export] 响应数据类型:', typeof res.data)
-    console.log('[Export] 响应数据长度:', res.data?.length || 0)
+    console.log('[Export] 响应数据长度:', res.data?.size || res.data?.length || 0)
     
     const blob = new Blob([res.data], { type: 'application/json;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
