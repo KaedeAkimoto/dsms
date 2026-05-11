@@ -55,7 +55,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { detectionService } from '../../services/detection'
-import { formatDateTime } from '../../utils/date'
+import { formatDateTime, formatUtcToCst } from '../../utils/date'
 
 const router = useRouter()
 const loading = ref(false)
@@ -80,7 +80,7 @@ const loadData = async () => {
     })
     const records = res.data.records || []
     for (const record of records) {
-      record.latest_upload_at = formatDateTime(record.latest_upload_at)
+      record.latest_upload_at = formatUtcToCst(record.latest_upload_at)
     }
     tableData.value = records
     pagination.total = res.data.total || 0

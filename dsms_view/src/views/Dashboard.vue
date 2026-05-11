@@ -88,7 +88,7 @@ import { deviceService } from '../services/device'
 import { detectionService } from '../services/detection'
 import { reviewService } from '../services/review'
 import { messageService } from '../services/message'
-import { formatDateTime } from '../utils/date'
+import { formatDateTime, formatUtcToCst } from '../utils/date'
 
 const stats = ref({
   users: 0,
@@ -116,7 +116,7 @@ onMounted(async () => {
     stats.value.pendingReviews = reviewsRes.data.total || 0
     recentDetections.value = (detectionsRes.data.records || []).map(record => ({
       ...record,
-      latest_upload_at: formatDateTime(record.latest_upload_at)
+      latest_upload_at: formatUtcToCst(record.latest_upload_at)
     }))
     recentAnnouncements.value = (announcementsRes.data.announcements || []).map(announcement => ({
       ...announcement,

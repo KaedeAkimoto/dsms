@@ -91,7 +91,7 @@
             </div>
             <div class="time-info">
               <span class="time-label">最新上传:</span>
-              <span class="time-value">{{ formatDateTime(record.latest_upload_at) }}</span>
+              <span class="time-value">{{ formatUtcToCst(record.latest_upload_at) }}</span>
             </div>
           </div>
 
@@ -208,7 +208,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { detectionService } from '../../services/detection'
 import { useDefectTypeStore } from '../../stores/defectType'
-import { formatDateTime } from '../../utils/date'
+import { formatDateTime, formatUtcToCst } from '../../utils/date'
 
 const router = useRouter()
 const defectTypeStore = useDefectTypeStore()
