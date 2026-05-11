@@ -294,6 +294,18 @@ class DatabaseInitializer:
                 Role.role_name == SystemRole.ROLE_NAMES[SystemRole.SUPER_SYS_ADMIN]
             )).scalar_one_or_none()
 
+            sys_admin_role = session.execute(select(Role).where(
+                Role.role_name == SystemRole.ROLE_NAMES[SystemRole.SENIOR_SYS_ADMIN]
+            )).scalar_one_or_none()
+
+            hr_role = session.execute(select(Role).where(
+                Role.role_name == SystemRole.ROLE_NAMES[SystemRole.HR_ADMIN]
+            )).scalar_one_or_none()
+
+            device_role = session.execute(select(Role).where(
+                Role.role_name == SystemRole.ROLE_NAMES[SystemRole.DEVICE_ADMIN]
+            )).scalar_one_or_none()
+
             qa_role = session.execute(select(Role).where(
                 Role.role_name == SystemRole.ROLE_NAMES[SystemRole.DETECTION_MONITOR]
             )).scalar_one_or_none()
@@ -305,6 +317,15 @@ class DatabaseInitializer:
             users_data = [
                 {"user_name": "admin", "real_name": "超级管理员", "email": "admin@example.com",
                  "phone": "13800138000", "role_id": super_role.role_id, "title_id": 9, "department_id": 1},
+                {"user_name": "sysadmin", "real_name": "系统管理员", "email": "sysadmin@example.com",
+                 "phone": "13800138005", "role_id": sys_admin_role.role_id if sys_admin_role else super_role.role_id,
+                 "title_id": 5, "department_id": 2},
+                {"user_name": "hradmin", "real_name": "人事管理员", "email": "hradmin@example.com",
+                 "phone": "13800138006", "role_id": hr_role.role_id if hr_role else super_role.role_id,
+                 "title_id": 6, "department_id": 3},
+                {"user_name": "deviceadmin", "real_name": "设备管理员", "email": "deviceadmin@example.com",
+                 "phone": "13800138007", "role_id": device_role.role_id if device_role else super_role.role_id,
+                 "title_id": 2, "department_id": 5},
                 {"user_name": "zhangsan", "real_name": "张三", "email": "zhangsan@example.com",
                  "phone": "13800138001", "role_id": qa_role.role_id if qa_role else super_role.role_id,
                  "title_id": 2, "department_id": 6},
