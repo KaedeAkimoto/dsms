@@ -3,10 +3,11 @@ import { ElMessage, ElNotification } from 'element-plus'
 
 const SSE_URL = import.meta.env.VITE_SSE_URL || 'http://localhost:8001/api/v1/sse'
 
-let eventSource = null
+let controller = null
 let reconnectTimer = null
 let reconnectAttempts = 0
 const maxReconnectAttempts = 10
+let reader = null
 
 // 消息处理回调列表
 const messageHandlers = []
@@ -15,7 +16,7 @@ export const isConnected = ref(false)
 
 export const sseService = {
   /**
-   * 连接SSE
+   * 连接SSE（使用fetch API替代EventSource）
    * @param {string} userId - 用户ID
    */
   connect(userId) {
@@ -28,7 +29,7 @@ export const sseService = {
     }
 
     // 如果已有连接，先关闭
-    if (eventSource) {
+    if (controller) {
       console.log('[SSE Service] 已有连接，先断开')
       this.disconnect()
     }
@@ -36,45 +37,95 @@ export const sseService = {
     const token = localStorage.getItem('access_token')
     console.log('[SSE Service] Token exists:', !!token)
     
-    const url = `${SSE_URL}/connect?user_id=${userId}&token=${token}`
+    const url = `${SSE_URL}/connect`
     console.log('[SSE Service] SSE URL:', url)
 
-    eventSource = new EventSource(url)
+    controller = new AbortController()
 
-    eventSource.onopen = () => {
+    this.doConnect(url, token, userId)
+  },
+
+  /**
+   * 执行连接
+   */
+  async doConnect(url, token, userId) {
+    console.log('[SSE Service] 发起fetch请求...')
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'text/event-stream'
+        },
+        signal: controller.signal
+      })
+
+      if (!response.ok) {
+        console.error('[SSE Service] ❌ HTTP请求失败，状态码:', response.status)
+        console.error('[SSE Service] 状态文本:', response.statusText)
+        
+        if (response.status === 401) {
+          console.error('[SSE Service] ❌ Token无效或过期')
+        }
+        
+        isConnected.value = false
+        this.tryReconnect(userId)
+        return
+      }
+
       console.log('[SSE Service] ✅ SSE连接成功建立')
       isConnected.value = true
       reconnectAttempts = 0
-    }
 
-    eventSource.onmessage = (event) => {
-      console.log('[SSE Service] 📥 接收到SSE消息')
-      console.log('[SSE Service] 原始消息:', event.data)
-      
-      try {
-        const message = JSON.parse(event.data)
-        console.log('[SSE Service] 解析后的消息:', message)
-        this.handleMessage(message)
-      } catch (error) {
-        console.error('[SSE Service] ❌ 解析SSE消息失败:', error)
+      // 处理流式响应
+      reader = response.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        
+        if (done) {
+          console.log('[SSE Service] 📤 服务端关闭连接')
+          break
+        }
+
+        buffer += decoder.decode(value, { stream: true })
+        
+        // 按事件分割
+        while (buffer.includes('\n\n')) {
+          const index = buffer.indexOf('\n\n')
+          const eventData = buffer.substring(0, index)
+          buffer = buffer.substring(index + 2)
+
+          if (eventData.startsWith('data: ')) {
+            const jsonString = eventData.substring(6)
+            try {
+              const message = JSON.parse(jsonString)
+              console.log('[SSE Service] 📥 接收到SSE消息:', message)
+              this.handleMessage(message)
+            } catch (error) {
+              console.error('[SSE Service] ❌ 解析SSE消息失败:', error)
+              console.error('[SSE Service] 原始数据:', jsonString)
+            }
+          }
+        }
       }
-    }
 
-    eventSource.onerror = (error) => {
-      console.error('[SSE Service] ❌ SSE错误:', error)
-      console.error('[SSE Service] 错误详情:', error ? error.message || error : '未知错误')
+      // 连接结束后尝试重连
+      console.log('[SSE Service] 连接结束，准备重连')
       isConnected.value = false
+      this.tryReconnect(userId)
 
-      // 自动重连
-      if (eventSource.readyState === EventSource.CLOSED) {
-        console.log('[SSE Service] 连接已关闭，准备重连')
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('[SSE Service] 连接已被主动中止')
+      } else {
+        console.error('[SSE Service] ❌ SSE连接异常:', error)
+        isConnected.value = false
         this.tryReconnect(userId)
       }
-    }
-
-    eventSource.onclose = () => {
-      console.log('[SSE Service] SSE连接已关闭')
-      isConnected.value = false
     }
   },
 
@@ -88,7 +139,9 @@ export const sseService = {
       console.log(`[SSE Service] 🔄 重连中... (第${reconnectAttempts}/${maxReconnectAttempts}次，延迟${delay}ms)`)
       
       reconnectTimer = setTimeout(() => {
-        this.connect(userId)
+        const token = localStorage.getItem('access_token')
+        const url = `${SSE_URL}/connect`
+        this.doConnect(url, token, userId)
       }, delay)
     } else {
       console.error('[SSE Service] ❌ 达到最大重连次数')
@@ -100,15 +153,24 @@ export const sseService = {
    */
   disconnect() {
     console.log('[SSE Service] 断开SSE连接')
-    if (eventSource) {
-      eventSource.close()
-      eventSource = null
+    
+    if (controller) {
+      controller.abort()
+      controller = null
     }
+    
+    if (reader) {
+      reader.cancel()
+      reader = null
+    }
+    
     if (reconnectTimer) {
       clearTimeout(reconnectTimer)
       reconnectTimer = null
     }
+    
     isConnected.value = false
+    reconnectAttempts = 0
   },
 
   /**
@@ -241,7 +303,7 @@ export const sseService = {
     return {
       isConnected: isConnected.value,
       reconnectAttempts: reconnectAttempts,
-      hasEventSource: !!eventSource,
+      hasController: !!controller,
       handlerCount: messageHandlers.length
     }
   },
