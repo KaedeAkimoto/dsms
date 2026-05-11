@@ -24,10 +24,12 @@ wheels/
 venv/
 env/
 ENV/
-.venv
+.venv/
 
 # Environment Variables
 .env
+.env.local
+.env.*.local
 config.toml
 
 # Docker
@@ -42,24 +44,56 @@ docker/nginx/ssl/*.key
 *.swp
 *.swo
 *~
+*.bak
 
 # Logs
 logs/
 *.log
+*.log.*
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
+data/
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+coverage.xml
+.tox/
 
 # Alembic
 alembic/versions/*.pyc
+
+# Frontend
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+.output/
+.cache/
+.parcel-cache/
+.svelte-kit/
+
+# Editor directories and files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# PyCharm
+*.idea/
+```

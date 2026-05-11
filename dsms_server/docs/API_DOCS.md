@@ -247,31 +247,24 @@ interface ProductionLineUpdateRequest {
   production_line_loc?: string;
   production_line_manager?: string;
 }
-```
 
-### 1.10 设备审批相关类型
-
-```typescript
 interface DeviceApproval {
   device_approval_id: string;
-  device_name: string;
-  device_type: string;
-  production_line_id: string;
-  device_manager: string;
-  approval_send: string;
-  approval_by: string | null;
-  approval_status: string;         // pending | approved | rejected
-  approval_comment: string | null;
-  created_at: string | null;
-}
-
-interface DeviceApprovalRequest {
-  approval_status: string;          // approved | rejected
-  approval_comment?: string;
+  device_id: string | null;
+  device_name: string | null;
+  device_type: string | null;
+  approver_id: string;
+  approver_name: string | null;
+  applicant_name: string | null;
+  status: string;                   // pending | approved | rejected
+  comment: string | null;
+  approve_comment: string | null;
+  created_at: string;
+  approve_time: string | null;
 }
 ```
 
-### 1.11 检测数据相关类型
+### 1.10 检测数据相关类型
 
 ```typescript
 interface DetectionRecord {
