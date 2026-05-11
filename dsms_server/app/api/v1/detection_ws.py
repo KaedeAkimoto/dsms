@@ -187,8 +187,8 @@ def update_detection_record_stats(batch_id: str, device_id: str, has_defect: boo
     with db_config.get_session() as session:
         result = session.execute(
             select(DetectionRecord).where(
-                DetectionRecord.record_batch_id == batch_id, # pyright: ignore[reportArgumentType]
-                DetectionRecord.device_id == UUID(device_id)     # pyright: ignore[reportArgumentType]
+                DetectionRecord.record_batch_id == batch_id,  # pyright: ignore[reportArgumentType]
+                DetectionRecord.device_id == UUID(device_id)  # pyright: ignore[reportArgumentType]
             )
         )
         record = result.scalar_one_or_none()
@@ -203,7 +203,7 @@ def update_detection_record_stats(batch_id: str, device_id: str, has_defect: boo
                 found = False
                 for item in current_info:
                     if item.get("defect_type_id") == defect_type_id:
-                        item["defect_count"] = item.get("defect_type_id", 0) + count
+                        item["defect_count"] = item.get("defect_count", 0) + count
                         found = True
                         break
                 if not found:
@@ -251,7 +251,7 @@ def create_defect_and_review_task(record_batch_id: str, device_id: str, device_n
 
         defect_types_info = []
         for detail in details:
-            defect_types_info.append(f"缺陷类型{detail.get('class_id')}")
+            defect_types_info.append(f"缺陷类型{detail.get('defect_type_id')}")
 
         message_content = (
             f"🚨 设备异常告警\n\n"
@@ -336,7 +336,7 @@ async def detection_websocket(
                             defect_details = [{
                                 "xyhw": (r["x"], r["y"], r["width"], r["height"]),
                                 "conf": r["confidence"],
-                                "class_id": r["class_id"]
+                                "defect_type_id": r["class_id"]  # 与API Schema保持一致
                             } for r in detection_results]
 
                             create_defect_and_review_task(

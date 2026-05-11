@@ -266,11 +266,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/api/v1/detection/device-status",
         "/api/v1/detection/demo",
         "/api/v1/ws/detection/demo",
+        "/api/v1/ws/detection",  # 设备WebSocket连接路径（使用device_id和upload_token认证）
         "/api/detection/demo",
         "/api/ws/detection/demo",
         "/ws/detection/demo",
         "/api/ws/",
         "/ws/",
+        "/ws/detection",
     ]
 
     def _get_cors_headers(self, request: Request) -> dict:
@@ -364,8 +366,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     def _is_exempt(self, path: str) -> bool:
         """检查路径是否免认证"""
+        # 去掉查询参数部分
+        path_without_query = path.split("?")[0]
         for exempt_path in self.EXEMPT_PATHS:
-            if path == exempt_path or path.startswith(exempt_path + "/"):
+            if path_without_query == exempt_path or path_without_query.startswith(exempt_path + "/"):
                 return True
         return False
 
