@@ -15,12 +15,6 @@
         >
           <el-table-column prop="name" label="表名" width="200" />
           <el-table-column prop="description" label="说明" />
-          <el-table-column prop="count" label="数据量" width="120">
-            <template #default="{ row }">
-              <span v-if="row.count !== null">{{ row.count }}</span>
-              <span v-else class="text-gray">加载中...</span>
-            </template>
-          </el-table-column>
           <el-table-column label="操作" width="150">
             <template #default="{ row }">
               <el-button 
@@ -44,7 +38,7 @@
           :loading="exportingAll"
         >
           <el-icon><Download /></el-icon>
-          导出全部表
+          导出全部数据
         </el-button>
       </div>
     </el-card>
@@ -61,38 +55,44 @@ const loading = ref(false)
 const exportingTable = ref('')
 const exportingAll = ref(false)
 
-const exportTables = reactive([
-  { name: 'production_lines', description: '生产线表', count: null },
-  { name: 'device_approvals', description: '设备审批表', count: null },
-  { name: 'devices', description: '设备表', count: null },
-  { name: 'device_status_history', description: '设备状态历史表', count: null },
-  { name: 'defect_types', description: '缺陷类型表', count: null },
-  { name: 'detection_records', description: '检测记录表', count: null },
-  { name: 'defect_details', description: '缺陷详情表', count: null },
-  { name: 'review_tasks', description: '审查任务表', count: null },
-  { name: 'roles', description: '角色表', count: null },
-  { name: 'departments', description: '部门表', count: null },
-  { name: 'titles', description: '职称表', count: null },
-  { name: 'users', description: '用户表', count: null },
-  { name: 'user_operation_logs', description: '用户操作日志表', count: null },
-  { name: 'user_messages', description: '用户消息表', count: null },
-  { name: 'system_messages', description: '系统消息表', count: null },
-  { name: 'announcements', description: '公告表', count: null },
-  { name: 'announcement_readers', description: '公告阅读记录表', count: null }
-])
+const tableDescriptions = {
+  production_lines: '生产线表',
+  device_approvals: '设备审批表',
+  devices: '设备表',
+  device_status_history: '设备状态历史表',
+  defect_types: '缺陷类型表',
+  detection_records: '检测记录表',
+  defect_details: '缺陷详情表',
+  review_tasks: '审查任务表',
+  roles: '角色表',
+  departments: '部门表',
+  titles: '职称表',
+  users: '用户表',
+  user_operation_logs: '用户操作日志表',
+  user_messages: '用户消息表',
+  system_messages: '系统消息表',
+  announcements: '公告表',
+  announcement_readers: '公告阅读记录表'
+}
 
-const loadTableCounts = async () => {
+const exportTables = ref([])
+
+const loadExportTables = async () => {
   loading.value = true
   try {
-    const res = await exportService.getTableCounts()
-    if (res.data && res.data.counts) {
-      const counts = res.data.counts
-      exportTables.forEach(table => {
-        table.count = counts[table.name] || 0
-      })
+    const res = await exportService.getExportTables()
+    if (res.data && res.data.data && res.data.data.tables) {
+      exportTables.value = res.data.data.tables.map(tableName => ({
+        name: tableName,
+        description: tableDescriptions[tableName] || tableName
+      }))
     }
   } catch (error) {
-    console.error('Load table counts failed:', error)
+    console.error('Load export tables failed:', error)
+    exportTables.value = Object.entries(tableDescriptions).map(([name, description]) => ({
+      name,
+      description
+    }))
   } finally {
     loading.value = false
   }
@@ -103,11 +103,11 @@ const handleExport = async (tableName) => {
   try {
     const res = await exportService.exportTable(tableName)
     
-    const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob([res.data], { type: 'application/json;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `${tableName}_${new Date().toISOString().split('T')[0]}.csv`
+    link.download = `${tableName}_${new Date().toISOString().split('T')[0]}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -127,27 +127,27 @@ const handleBatchExport = async () => {
   try {
     const res = await exportService.exportAllTables()
     
-    const blob = new Blob([res.data], { type: 'application/zip' })
+    const blob = new Blob([res.data], { type: 'application/json;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `all_tables_${new Date().toISOString().split('T')[0]}.zip`
+    link.download = `all_data_${new Date().toISOString().split('T')[0]}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
     
-    ElMessage.success('成功导出全部表')
+    ElMessage.success('成功导出全部数据')
   } catch (error) {
     console.error('Export all tables failed:', error)
-    ElMessage.error('导出全部表失败')
+    ElMessage.error('导出全部数据失败')
   } finally {
     exportingAll.value = false
   }
 }
 
 onMounted(() => {
-  loadTableCounts()
+  loadExportTables()
 })
 </script>
 
