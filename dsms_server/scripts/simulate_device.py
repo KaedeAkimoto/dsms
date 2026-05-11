@@ -52,8 +52,8 @@ UPLOAD_TOKEN = "UmYwfL2Rg9G_cEiRFuY5ameEQs9eE-4qms9ClEIL8o4"  # 上传Token
 SERVER_URL = "ws://localhost:8001/api/v1/ws/detection"  # 服务器WebSocket地址
 IMAGE_DIR = Path(__file__).parent.parent / "debug" / "images"  # 图片目录
 
-# 检测间隔（秒）
-DETECTION_INTERVAL = 5
+# 检测间隔（秒）- 每秒3张
+DETECTION_INTERVAL = 1/3
 # 状态上报间隔（秒）
 STATUS_REPORT_INTERVAL = 60
 # 重连间隔（秒）
