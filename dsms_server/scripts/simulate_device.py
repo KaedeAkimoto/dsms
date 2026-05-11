@@ -231,7 +231,7 @@ class DeviceSimulator:
         try:
             message = json.dumps({
                 "type": "ping",
-                "timestamp": datetime.now(timezone(timedelta(hours=8))).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             await self.websocket.send(message)
             logger.debug("心跳已发送")
