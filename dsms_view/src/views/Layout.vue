@@ -197,20 +197,13 @@ const handleCommand = (command) => {
 }
 
 onMounted(() => {
-  console.log('[Layout] 组件挂载，尝试连接SSE')
   const user = JSON.parse(localStorage.getItem('user') || '{}')
-  console.log('[Layout] 当前用户:', user)
-  
   if (user.user_id) {
-    console.log('[Layout] 用户ID存在，连接SSE:', user.user_id)
     sseService.connect(user.user_id)
-  } else {
-    console.log('[Layout] 用户ID不存在，跳过SSE连接')
   }
 })
 
 onUnmounted(() => {
-  console.log('[Layout] 组件卸载，断开SSE连接')
   sseService.disconnect()
 })
 </script>

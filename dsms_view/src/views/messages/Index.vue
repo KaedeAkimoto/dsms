@@ -765,10 +765,7 @@ const handleMarkAllAsRead = async () => {
 }
 
 onMounted(async () => {
-  console.log('[Messages Index] 组件挂载')
-  
   if (cachedMessages.system.length === 0 && cachedMessages.received.length === 0 && cachedMessages.sent.length === 0) {
-    console.log('[Messages Index] 首次加载，初始化数据')
     await Promise.all([
       loadAllRoles(),
       loadAllDepartments(),
@@ -782,48 +779,18 @@ onMounted(async () => {
     retryPendingMessages()
   }, 1000)
 
-  // 监听消息刷新事件
-  console.log('[Messages Index] 注册消息刷新事件监听器')
   window.addEventListener('dsms_message_refresh', handleMessageRefresh)
-  
-  // 添加测试按钮（临时）
-  const addTestButton = () => {
-    const button = document.createElement('button')
-    button.textContent = '测试刷新'
-    button.style.cssText = 'position: fixed; top: 100px; right: 20px; z-index: 9999; padding: 8px 16px; background: #409eff; color: white; border: none; border-radius: 4px; cursor: pointer;'
-    button.onclick = () => {
-      console.log('[Messages Index] 手动触发消息刷新测试')
-      handleMessageRefresh()
-    }
-    document.body.appendChild(button)
-  }
-  // addTestButton() // 取消注释以启用测试按钮
 })
 
 onUnmounted(() => {
-  console.log('[Messages Index] 组件卸载，移除消息刷新事件监听器')
   window.removeEventListener('dsms_message_refresh', handleMessageRefresh)
 })
 
 const handleMessageRefresh = async () => {
-  console.log('[Messages Index] 🚀 收到消息刷新事件')
-  console.log('[Messages Index] 当前缓存消息数量:', {
-    system: cachedMessages.system.length,
-    received: cachedMessages.received.length,
-    sent: cachedMessages.sent.length
-  })
-  
   try {
-    console.log('[Messages Index] 开始重新加载消息...(强制刷新)')
-    await loadAllMessages(true)  // 强制刷新
-    console.log('[Messages Index] ✅ 消息刷新完成')
-    console.log('[Messages Index] 刷新后消息数量:', {
-      system: cachedMessages.system.length,
-      received: cachedMessages.received.length,
-      sent: cachedMessages.sent.length
-    })
+    await loadAllMessages(true)
   } catch (error) {
-    console.error('[Messages Index] ❌ 消息刷新失败:', error)
+    console.error('Message refresh failed:', error)
   }
 }
 </script>
