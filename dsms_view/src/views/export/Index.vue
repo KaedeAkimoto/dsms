@@ -69,6 +69,7 @@ import { exportService } from '../../services/export'
 const loading = ref(false)
 const exportingTable = ref('')
 const exportingAll = ref(false)
+const exportTables = ref([])
 
 const tableDescriptions = {
   production_lines: '生产线表',
