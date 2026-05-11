@@ -287,9 +287,11 @@ const hasUnreadMessages = computed(() => {
   return sortedMessages.value.some(msg => msg.type !== 'sent' && msg.status === 'unread')
 })
 
-const loadAllMessages = async () => {
+const loadAllMessages = async (forceRefresh = false) => {
   const cache = messageService.getCache()
-  if (cache.loaded) {
+  
+  // 如果不是强制刷新且缓存已加载，直接使用缓存
+  if (!forceRefresh && cache.loaded) {
     cachedMessages.system = [...cache.systemMessages]
     cachedMessages.received = [...cache.receivedMessages]
     cachedMessages.sent = [...cache.sentMessages]
@@ -298,6 +300,11 @@ const loadAllMessages = async () => {
   
   loading.value = true
   try {
+    // 强制刷新时清除缓存标记
+    if (forceRefresh) {
+      messageService.setLoaded(false)
+    }
+    
     await Promise.all([
       loadAllTypeMessages('system'),
       loadAllTypeMessages('received'),
@@ -807,8 +814,8 @@ const handleMessageRefresh = async () => {
   })
   
   try {
-    console.log('[Messages Index] 开始重新加载消息...')
-    await loadAllMessages()
+    console.log('[Messages Index] 开始重新加载消息...(强制刷新)')
+    await loadAllMessages(true)  // 强制刷新
     console.log('[Messages Index] ✅ 消息刷新完成')
     console.log('[Messages Index] 刷新后消息数量:', {
       system: cachedMessages.system.length,
