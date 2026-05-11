@@ -102,34 +102,25 @@ const selectedFormat = ref('json')
 const loadExportTables = async () => {
   loading.value = true
   try {
-    console.log('[Export] 开始获取可导出表列表...')
     const res = await exportService.getExportTables()
-    console.log('[Export] 获取表列表响应:', JSON.stringify(res, null, 2))
-    console.log('[Export] res.data:', JSON.stringify(res.data, null, 2))
     
-    // 检查响应结构 - 拦截器可能已处理
     const tables = res.data?.tables || res.tables
     if (tables && Array.isArray(tables)) {
       exportTables.value = tables.map(tableName => ({
         name: tableName,
         description: tableDescriptions[tableName] || tableName
       }))
-      console.log('[Export] 成功加载表列表:', exportTables.value.length, '个表')
     } else {
-      console.warn('[Export] 响应数据结构不符合预期:', res)
       exportTables.value = Object.entries(tableDescriptions).map(([name, description]) => ({
         name,
         description
       }))
-      console.log('[Export] 使用本地默认表列表:', exportTables.value.length, '个表')
     }
   } catch (error) {
-    console.error('[Export] 获取表列表失败:', error)
     exportTables.value = Object.entries(tableDescriptions).map(([name, description]) => ({
       name,
       description
     }))
-    console.log('[Export] 使用本地默认表列表:', exportTables.value.length, '个表')
   } finally {
     loading.value = false
   }
@@ -139,9 +130,7 @@ const handleExport = async (tableName) => {
   exportingTable.value = tableName
   try {
     const formatInfo = exportFormats.find(f => f.value === selectedFormat.value)
-    console.log(`[Export] 开始导出表: ${tableName}，格式: ${selectedFormat.value}`)
     const res = await exportService.exportTable(tableName, selectedFormat.value)
-    console.log(`[Export] 导出表 ${tableName} 响应状态:`, res.status)
     
     const blob = new Blob([res.data], { type: getContentType(selectedFormat.value) })
     const url = URL.createObjectURL(blob)
@@ -153,11 +142,8 @@ const handleExport = async (tableName) => {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
     
-    console.log(`[Export] 成功导出表: ${tableName}`)
     ElMessage.success(`成功导出 ${tableName} 表`)
   } catch (error) {
-    console.error(`[Export] 导出表 ${tableName} 失败:`, error)
-    console.error(`[Export] 错误详情:`, error.response?.data || error.message)
     ElMessage.error(`导出 ${tableName} 表失败`)
   } finally {
     exportingTable.value = ''
@@ -168,9 +154,7 @@ const handleBatchExport = async () => {
   exportingAll.value = true
   try {
     const formatInfo = exportFormats.find(f => f.value === selectedFormat.value)
-    console.log('[Export] 开始导出全部数据，格式:', selectedFormat.value)
     const res = await exportService.exportAllTables(selectedFormat.value)
-    console.log('[Export] 导出全部数据响应状态:', res.status)
     
     const blob = new Blob([res.data], { type: getContentType(selectedFormat.value) })
     const url = URL.createObjectURL(blob)
@@ -182,11 +166,8 @@ const handleBatchExport = async () => {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
     
-    console.log('[Export] 成功导出全部数据')
     ElMessage.success('成功导出全部数据')
   } catch (error) {
-    console.error('[Export] 导出全部数据失败:', error)
-    console.error('[Export] 错误详情:', error.response?.data || error.message)
     ElMessage.error('导出全部数据失败')
   } finally {
     exportingAll.value = false
