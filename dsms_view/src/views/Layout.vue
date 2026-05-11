@@ -95,7 +95,7 @@
           </el-sub-menu>
           <el-sub-menu index="/system-functions">
             <template #title>
-              <el-icon><Database /></el-icon>
+              <el-icon><FolderOpened /></el-icon>
               <span>系统功能</span>
             </template>
             <el-menu-item index="/audit-logs">审计日志</el-menu-item>
@@ -164,7 +164,7 @@ import {
   Fold,
   Expand,
   ArrowDown,
-  Database
+  FolderOpened
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
