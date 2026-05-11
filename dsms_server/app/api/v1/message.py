@@ -45,11 +45,11 @@ router = APIRouter()
 )
 @router.get("/sse/connect")
 async def sse_connect(request: Request, user: dict = Depends(require_permission)):
-    user_id = user["user_id"]
+    user_id = str(user["user_id"])
 
     async def event_generator():
         queue = asyncio.Queue()
-        sse_connection_manager.active_connections.setdefault(str(user_id), set()).add(queue)
+        sse_connection_manager.connect(queue, user_id)
 
         try:
             while True:
@@ -63,8 +63,7 @@ async def sse_connect(request: Request, user: dict = Depends(require_permission)
         except Exception as e:
             pass
         finally:
-            if str(user_id) in sse_connection_manager.active_connections:
-                sse_connection_manager.active_connections[str(user_id)].discard(queue)
+            sse_connection_manager.disconnect(queue, user_id)
 
     return StreamingResponse(
         event_generator(),

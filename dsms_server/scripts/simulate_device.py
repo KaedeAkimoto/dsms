@@ -133,7 +133,7 @@ class DeviceSimulator:
     def get_next_image(self) -> Optional[bytes]:
         """获取下一张图片数据（99.8%概率返回正常图片，0.2%概率返回有缺陷图片）"""
         # 99.8%概率返回生成的全黑/全白图片（模拟正常产品）
-        if random.random() < 0.998:
+        if random.random() < 0.99:
             return self.generate_monochrome_image()
         else:
             # 0.2%概率返回文件夹里的有缺陷图片

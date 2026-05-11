@@ -1,5 +1,5 @@
 from fastapi import WebSocket
-from typing import Dict, Set
+from typing import Dict, Set, Union
 from uuid import UUID
 import asyncio
 import json
@@ -57,4 +57,51 @@ class ConnectionManager:
         return 0
 
 
-sse_connection_manager = ConnectionManager()
+class SSEConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, Set[asyncio.Queue]] = {}
+
+    def connect(self, queue: asyncio.Queue, user_id: str):
+        if user_id not in self.active_connections:
+            self.active_connections[user_id] = set()
+        self.active_connections[user_id].add(queue)
+        logger.info(f"SSE connected for user {user_id}. Total connections: {len(self.active_connections[user_id])}")
+
+    def disconnect(self, queue: asyncio.Queue, user_id: str):
+        if user_id in self.active_connections:
+            self.active_connections[user_id].discard(queue)
+            if not self.active_connections[user_id]:
+                del self.active_connections[user_id]
+        logger.info(f"SSE disconnected for user {user_id}")
+
+    async def send_personal_message(self, message: dict, user_id: Union[UUID, str]):
+        user_id_str = str(user_id)
+        if user_id_str in self.active_connections:
+            disconnected = []
+            for queue in self.active_connections[user_id_str]:
+                try:
+                    await queue.put(message)
+                except Exception as e:
+                    logger.warning(f"Failed to send message to SSE queue: {e}")
+                    disconnected.append(queue)
+            for q in disconnected:
+                self.active_connections[user_id_str].discard(q)
+            if not self.active_connections[user_id_str]:
+                del self.active_connections[user_id_str]
+
+    def is_user_online(self, user_id: Union[UUID, str]) -> bool:
+        user_id_str = str(user_id)
+        return user_id_str in self.active_connections and len(self.active_connections[user_id_str]) > 0
+
+    def get_online_users(self) -> list:
+        return list(self.active_connections.keys())
+
+    def get_user_connection_count(self, user_id: Union[UUID, str]) -> int:
+        user_id_str = str(user_id)
+        if user_id_str in self.active_connections:
+            return len(self.active_connections[user_id_str])
+        return 0
+
+
+websocket_connection_manager = ConnectionManager()
+sse_connection_manager = SSEConnectionManager()
