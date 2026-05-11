@@ -117,6 +117,19 @@ class DeviceSimulator:
             logger.error(f"生成单色图片失败: {e}")
             return None
 
+    def load_images(self):
+        """加载图片文件列表"""
+        if not self.image_dir.exists():
+            logger.warning(f"图片目录不存在: {self.image_dir}")
+            return
+
+        supported_extensions = ('.jpg', '.jpeg', '.png', '.bmp')
+        self.image_files = [
+            str(f) for f in self.image_dir.iterdir()
+            if f.is_file() and f.suffix.lower() in supported_extensions
+        ]
+        logger.info(f"已加载 {len(self.image_files)} 张图片")
+
     def get_next_image(self) -> Optional[bytes]:
         """获取下一张图片数据（99.8%概率返回正常图片，0.2%概率返回全黑/全白图片）"""
         # 99.8%概率返回正常图片
