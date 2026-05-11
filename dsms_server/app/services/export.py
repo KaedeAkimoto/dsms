@@ -11,6 +11,7 @@ import csv
 import io
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.drawing.image import Image as ExcelImage
 from sqlmodel import select
 
 from app.config.database import db_config
@@ -165,7 +166,15 @@ class ExportService:
                     elif isinstance(value, (list, dict)):
                         value = json.dumps(value, default=str) if value else ""
                     elif isinstance(value, bytes):
-                        value = "(二进制数据，已跳过)"
+                        try:
+                            img_stream = io.BytesIO(value)
+                            img = ExcelImage(img_stream)
+                            img.width = 100
+                            img.height = 100
+                            ws.add_image(img, f'{ws.cell(row=row_idx, column=col_idx).column_letter}{row_idx}')
+                            value = "(图片)"
+                        except Exception:
+                            value = "(无效图片)"
                     ws.cell(row=row_idx, column=col_idx, value=value)
 
             for col_idx in range(1, len(headers) + 1):
@@ -205,7 +214,15 @@ class ExportService:
                 elif isinstance(value, (list, dict)):
                     value = json.dumps(value, default=str) if value else ""
                 elif isinstance(value, bytes):
-                    value = "(二进制数据，已跳过)"
+                    try:
+                        img_stream = io.BytesIO(value)
+                        img = ExcelImage(img_stream)
+                        img.width = 100
+                        img.height = 100
+                        ws.add_image(img, f'{ws.cell(row=row_idx, column=col_idx).column_letter}{row_idx}')
+                        value = "(图片)"
+                    except Exception:
+                        value = "(无效图片)"
                 ws.cell(row=row_idx, column=col_idx, value=value)
 
         for col_idx in range(1, len(headers) + 1):
