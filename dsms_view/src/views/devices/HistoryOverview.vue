@@ -350,7 +350,7 @@ const refreshData = async () => {
     productionLines.forEach(line => {
       const lineDevices = devices.filter(d => d.production_line_id === line.production_line_id);
       lineChartData.value.push({
-        line: line.production_line_name || line.production_line_id,
+        line: line.line_name || line.production_line_name || '未命名生产线',
         active: lineDevices.filter(d => d.status === 'active').length,
         fault: lineDevices.filter(d => d.status === 'fault').length,
         maintenance: lineDevices.filter(d => d.status === 'maintenance').length,

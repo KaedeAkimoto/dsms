@@ -113,15 +113,9 @@
               </span>
             </div>
             <div class="metric-item">
-              <span class="metric-label">磁盘</span>
-              <span class="metric-value" :class="getMetricClass(device.disk_usage)">
-                {{ device.disk_usage || '-' }}%
-              </span>
-            </div>
-            <div class="metric-item">
-              <span class="metric-label">网络</span>
-              <span class="metric-value" :class="device.network_status === 'connected' ? 'success' : 'danger'">
-                {{ device.network_status === 'connected' ? '已连接' : (device.network_status || '-') }}
+              <span class="metric-label">延迟</span>
+              <span class="metric-value" :class="getMetricClass(device.network_latency, 'latency')">
+                {{ device.network_latency !== undefined ? device.network_latency + 'ms' : '-' }}
               </span>
             </div>
           </div>
@@ -183,13 +177,8 @@
           <el-table-column prop="memory_usage" label="内存使用率" min-width="100">
             <template #default="{ row }">{{ row.memory_usage ? row.memory_usage + '%' : '-' }}</template>
           </el-table-column>
-          <el-table-column prop="disk_usage" label="磁盘使用率" min-width="100">
-            <template #default="{ row }">{{ row.disk_usage ? row.disk_usage + '%' : '-' }}</template>
-          </el-table-column>
-          <el-table-column prop="network_status" label="网络状态" min-width="100">
-            <template #default="{ row }">
-              {{ row.network_status === 'connected' ? '已连接' : (row.network_status || '-') }}
-            </template>
+          <el-table-column prop="network_status" label="网络延迟" min-width="100">
+            <template #default="{ row }">{{ row.network_status || '-' }}</template>
           </el-table-column>
           <el-table-column prop="timestamp" label="记录时间" min-width="160" />
         </el-table>
@@ -311,7 +300,46 @@ const loadData = async () => {
   loading.value = true
   try {
     const res = await deviceService.getList({ limit: 1000 })
-    devices.value = res.data.devices || []
+    const deviceList = res.data.devices || []
+    
+    // 为每个设备获取最新的历史记录来填充指标
+    const devicesWithMetrics = await Promise.all(
+      deviceList.map(async (device) => {
+        try {
+          const historyRes = await deviceService.getHistory(device.device_id, { limit: 1 })
+          const histories = historyRes.data.histories || []
+          if (histories.length > 0) {
+            const latest = histories[0]
+            return {
+              ...device,
+              cpu_usage: latest.cpu_usage,
+              memory_usage: latest.memory_usage,
+              network_status: latest.network_latency !== undefined ? 'connected' : '-',
+              network_latency: latest.network_latency
+            }
+          }
+          return {
+            ...device,
+            cpu_usage: undefined,
+            memory_usage: undefined,
+            network_status: '-',
+            network_latency: undefined
+          }
+        } catch (error) {
+          console.error(`Load metrics for device ${device.device_id} failed:`, error)
+          return {
+            ...device,
+            cpu_usage: undefined,
+            memory_usage: undefined,
+            disk_usage: undefined,
+            network_status: '-',
+            network_latency: undefined
+          }
+        }
+      })
+    )
+    
+    devices.value = devicesWithMetrics
   } catch (error) {
     console.error('Load devices failed:', error)
     ElMessage.error('加载设备数据失败')
@@ -341,9 +369,19 @@ const handleViewHistory = async (device) => {
   selectedDevice.value = device
   try {
     const res = await deviceService.getHistory(device.device_id, { limit: 50 })
-    historyData.value = res.data.history || []
+    
+    // 适配后端返回的格式：后端返回histories数组
+    const histories = res.data.histories || []
+    
+    historyData.value = histories.map((item) => ({
+      status: item.status || '-',
+      ip_addr: device.ip_addr || '-',
+      cpu_usage: item.cpu_usage,
+      memory_usage: item.memory_usage,
+      network_status: item.network_latency !== undefined ? `${item.network_latency}ms` : '-',
+      timestamp: item.created_at || '-'
+    }))
   } catch (error) {
-    console.error('Load history failed:', error)
     historyData.value = []
   }
   showHistoryDialog.value = true
@@ -578,7 +616,7 @@ loadProductionLines()
 
 .card-metrics {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   padding: 12px;
   background: #f9fafc;

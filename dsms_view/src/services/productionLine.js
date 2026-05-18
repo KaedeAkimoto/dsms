@@ -15,17 +15,15 @@ export const productionLineService = {
 
   create(data) {
     return api.post('/device-production-lines', {
-      production_line_name: data.production_line_name,
-      production_line_loc: data.production_line_loc,
-      production_line_manager: data.production_line_manager
+      line_name: data.production_line_name,
+      line_code: data.production_line_loc
     })
   },
 
   update(production_line_id, data) {
     return api.put(`/device-production-lines/${production_line_id}`, {
-      production_line_name: data.production_line_name,
-      production_line_loc: data.production_line_loc,
-      production_line_manager: data.production_line_manager
+      line_name: data.production_line_name,
+      line_code: data.production_line_loc
     })
   },
 

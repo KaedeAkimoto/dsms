@@ -25,7 +25,6 @@
           <el-table-column prop="production_line_id" label="生产线ID" min-width="280" />
           <el-table-column prop="production_line_name" label="生产线名称" min-width="200" />
           <el-table-column prop="production_line_loc" label="生产线位置" min-width="200" />
-          <el-table-column prop="production_line_manager" label="管理员" min-width="200" />
           <el-table-column label="操作" width="250" fixed="right">
             <template #default="{ row }">
               <el-button type="primary" size="small" @click="handleViewDetail(row)">查看</el-button>
@@ -151,7 +150,15 @@ const loadData = async () => {
       skip,
       limit: pagination.limit
     })
-    const lines = res.data?.production_lines || []
+    
+    const lines = (res.data?.production_lines || []).map(line => ({
+      production_line_id: line.production_line_id,
+      production_line_name: line.line_name || line.production_line_name || '',
+      production_line_loc: line.line_code || line.production_line_loc || '',
+      production_line_manager_id: line.production_line_manager || line.line_manager || null,
+      created_at: line.created_at,
+      updated_at: line.updated_at
+    }))
     
     if (searchKeyword.value) {
       const keyword = searchKeyword.value.toLowerCase()
@@ -208,9 +215,52 @@ const handleCurrentChange = (val) => {
   loadData()
 }
 
-const handleViewDetail = (row) => {
-  selectedLine.value = row
-  showDetailDialog.value = true
+const handleViewDetail = async (row) => {
+  try {
+    const res = await productionLineService.getById(row.production_line_id)
+    const detail = res.data?.production_line || res.data || row
+    const managerId = detail.line_manager || detail.production_line_manager
+    let managerName = '-'
+    
+    if (managerId) {
+      try {
+        const usersRes = await userService.getList({ limit: 100 })
+        const users = usersRes.data?.users || []
+        const user = users.find(u => u.user_id === managerId)
+        
+        if (user) {
+          managerName = `${user.real_name || user.user_name} (${user.user_name})`
+        } else {
+          try {
+            const userRes = await userService.getById(managerId)
+            const userData = userRes.data?.user
+            if (userData) {
+              managerName = `${userData.real_name || userData.user_name} (${userData.user_name})`
+            }
+          } catch (e) {
+            managerName = managerId
+          }
+        }
+      } catch (e) {
+        managerName = managerId
+      }
+    }
+    
+    const line = {
+      production_line_id: detail.production_line_id,
+      production_line_name: detail.line_name || detail.production_line_name || '',
+      production_line_loc: detail.line_code || detail.production_line_loc || '',
+      production_line_manager: managerName,
+      created_at: detail.created_at,
+      updated_at: detail.updated_at
+    }
+    
+    selectedLine.value = line
+    showDetailDialog.value = true
+  } catch (error) {
+    selectedLine.value = row
+    showDetailDialog.value = true
+  }
 }
 
 const handleCreate = () => {
@@ -223,9 +273,10 @@ const handleCreate = () => {
 
 const handleEdit = (row) => {
   isEdit.value = true
+  selectedLine.value = row
   form.production_line_name = row.production_line_name
   form.production_line_loc = row.production_line_loc
-  form.production_line_manager = row.production_line_manager
+  form.production_line_manager = row.production_line_manager_id || ''
   showEditDialog.value = true
 }
 

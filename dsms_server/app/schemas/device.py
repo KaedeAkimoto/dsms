@@ -97,6 +97,8 @@ class ProductionLineCreateRequest(BaseModel):
 
 class ProductionLineUpdateRequest(BaseModel):
     line_name: Optional[str] = Field(None, description="生产线名称")
+    line_code: Optional[str] = Field(None, description="生产线编码")
+    line_manager: Optional[UUID] = Field(None, description="生产线负责人ID")
     description: Optional[str] = Field(None, description="生产线描述")
 
 
@@ -104,6 +106,7 @@ class ProductionLineResponse(BaseModel):
     production_line_id: UUID
     line_name: str
     line_code: str
+    line_manager: Optional[UUID] = None
     description: Optional[str] = None
     created_at: Optional[str] = None
 
@@ -113,6 +116,7 @@ class ProductionLineResponse(BaseModel):
             'production_line_id': str(obj.production_line_id),
             'line_name': obj.production_line_name,
             'line_code': obj.production_line_loc,
+            'line_manager': str(obj.production_line_manager) if obj.production_line_manager else None,
             'description': getattr(obj, 'description', None),
             'created_at': convert_datetime_to_string(obj.created_at) if hasattr(obj, 'created_at') and obj.created_at else None,
         })
@@ -186,24 +190,24 @@ class DeviceApprovalListResponse(BaseModel):
 
 
 class DeviceStatusHistoryResponse(BaseModel):
-    status_history_id: UUID
+    history_id: UUID
     device_id: UUID
-    old_status: Optional[str] = None
-    new_status: str
-    changed_by: UUID
-    changed_at: Optional[str] = None
-    reason: Optional[str] = None
+    status: str
+    cpu_usage: Optional[float] = None
+    memory_usage: Optional[float] = None
+    network_latency: Optional[int] = None
+    created_at: Optional[str] = None
 
     @classmethod
     def from_orm(cls, obj):
         return cls.model_validate({
-            'status_history_id': str(obj.status_history_id),
+            'history_id': str(obj.history_id),
             'device_id': str(obj.device_id),
-            'old_status': obj.old_status,
-            'new_status': obj.new_status,
-            'changed_by': str(obj.changed_by),
-            'changed_at': convert_datetime_to_string(obj.changed_at) if hasattr(obj, 'changed_at') and obj.changed_at else None,
-            'reason': obj.reason,
+            'status': obj.status,
+            'cpu_usage': obj.cpu_usage,
+            'memory_usage': obj.memory_usage,
+            'network_latency': obj.network_latency,
+            'created_at': convert_datetime_to_string(obj.created_at) if hasattr(obj, 'created_at') and obj.created_at else None,
         })
 
 

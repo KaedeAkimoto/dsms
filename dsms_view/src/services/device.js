@@ -38,7 +38,7 @@ export const deviceService = {
   },
 
   getHistory(device_id, params) {
-    return api.get(`/devices/${device_id}/history`, { params })
+    return api.get(`/device-status-history/${device_id}`, { params })
   },
 
   getProductionLines(params) {
