@@ -505,6 +505,8 @@ const handleConfirm = async (row) => {
     ElMessage.success('确认公告成功')
     showDetailDialog.value = false
     loadData()
+    
+    window.dispatchEvent(new CustomEvent('announcement-confirmed'))
   } catch (error) {
     console.error('Confirm announcement failed:', error)
     ElMessage.error('确认公告失败')

@@ -82,7 +82,7 @@
             <el-option 
               v-for="line in productionLines" 
               :key="line.production_line_id" 
-              :label="line.production_line_name + ' (' + line.production_line_id + ')'" 
+              :label="(line.line_name || line.production_line_name || '未命名生产线') + ' (' + line.production_line_id + ')'" 
               :value="line.production_line_id" 
             />
           </el-select>

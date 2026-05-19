@@ -20,7 +20,8 @@
       </template>
 
       <div v-if="loading" class="text-center py-12">
-        <el-spinner size="large" />
+        <div class="loading-spinner"></div>
+        <span class="loading-text">加载中...</span>
       </div>
 
       <div v-else-if="detailData" class="detail-content">
@@ -231,7 +232,7 @@
   </div>
 </template>
 
-<script setup>import { ref, computed, onMounted, nextTick } from 'vue';
+<script setup>import { ref, computed, onMounted, onActivated, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { detectionService } from '../../services/detection';
@@ -423,7 +424,7 @@ const getRectHeight = (xyhw) => {
   return xyhw[3] * scaleY;
 };
 const goBack = () => {
- router.push('/detections');
+  router.back();
 };
 const openAssigneeDialog = async () => {
  try {
@@ -477,30 +478,38 @@ const handleSubmitReview = async () => {
  }
 };
 const loadDetail = async () => {
- loading.value = true;
- const recordBatchId = route.params.recordBatchId;
- if (!recordBatchId) {
- ElMessage.error('缺少批次ID参数');
- loading.value = false;
- return;
- }
- try {
- const [res] = await Promise.all([
- detectionService.getById(recordBatchId),
- defectTypeStore.loadDefectTypes()
- ]);
- detailData.value = res.data;
- }
- catch (error) {
- console.error('Load defect detail failed:', error);
- ElMessage.error('获取缺陷详情失败');
- }
- finally {
- loading.value = false;
- }
+  loading.value = true;
+  const recordBatchId = route.params.recordBatchId;
+  
+  if (!recordBatchId) {
+    ElMessage.error('缺少批次ID参数');
+    loading.value = false;
+    return;
+  }
+  try {
+    const [res] = await Promise.all([
+      detectionService.getById(recordBatchId),
+      defectTypeStore.loadDefectTypes()
+    ]);
+    detailData.value = res.data;
+  }
+  catch (error) {
+    console.error('Load defect detail failed:', error);
+    ElMessage.error('获取缺陷详情失败');
+  }
+  finally {
+    loading.value = false;
+  }
 };
 onMounted(() => {
- loadDetail();
+  loadDetail();
+});
+
+onActivated(() => {
+  const currentRecordBatchId = route.params.recordBatchId;
+  if (currentRecordBatchId !== detailData.value?.record_batch_id) {
+    loadDetail();
+  }
 });
 </script>
 
@@ -699,5 +708,25 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   color: #303133;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #409eff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 12px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: #909399;
+  font-size: 14px;
 }
 </style>

@@ -89,9 +89,20 @@
             <template #title>
               <el-icon><ChatDotRound /></el-icon>
               <span>消息中心</span>
+              <span v-if="unreadCount > 0" class="new-dot"></span>
             </template>
-            <el-menu-item index="/messages">我的消息</el-menu-item>
-            <el-menu-item index="/announcements">公告管理</el-menu-item>
+            <el-menu-item index="/messages">
+              <template #title>
+                <span>我的消息</span>
+                <span v-if="userUnreadCount > 0" class="unread-badge">{{ userUnreadCount > 99 ? '99+' : userUnreadCount }}</span>
+              </template>
+            </el-menu-item>
+            <el-menu-item index="/announcements">
+              <template #title>
+                <span>公告管理</span>
+                <span v-if="announcementUnreadCount > 0" class="unread-badge">{{ announcementUnreadCount > 99 ? '99+' : announcementUnreadCount }}</span>
+              </template>
+            </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="/system-functions">
             <template #title>
@@ -154,6 +165,7 @@ import { useRoute, useRouter, RouterView } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 import { sseService } from '../services/sse'
+import { messageService } from '../services/message'
 import {
   HomeFilled,
   User,
@@ -173,6 +185,9 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const isCollapse = ref(false)
+const unreadCount = ref(0)
+const userUnreadCount = ref(0)
+const announcementUnreadCount = ref(0)
 
 const activeMenu = computed(() => route.path)
 
@@ -196,15 +211,62 @@ const handleCommand = (command) => {
   }
 }
 
+const loadUnreadCount = async () => {
+  try {
+    const [userRes, systemRes, announcementRes] = await Promise.all([
+      messageService.getReceivedMessages({ status: 'unread', limit: 100 }),
+      messageService.getMyMessages({ status: 'unread', limit: 100 }),
+      messageService.getMyAnnouncements({ limit: 100 })
+    ])
+    
+    const userUnread = userRes.data.total || 0
+    const systemUnread = systemRes.data.total || 0
+    userUnreadCount.value = userUnread + systemUnread
+    
+    const announcements = announcementRes.data.announcements || []
+    let announcementUnread = 0
+    for (const ann of announcements) {
+      try {
+        const statusRes = await messageService.getAnnouncementReadStatus(ann.announcement_id)
+        if (statusRes.data.is_read !== true) {
+          announcementUnread++
+        }
+      } catch (error) {
+        announcementUnread++
+      }
+    }
+    announcementUnreadCount.value = announcementUnread
+    unreadCount.value = userUnreadCount.value + announcementUnreadCount.value
+  } catch (error) {
+    console.error('Load unread count failed:', error)
+    userUnreadCount.value = 0
+    announcementUnreadCount.value = 0
+    unreadCount.value = 0
+  }
+}
+
 onMounted(() => {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   if (user.user_id) {
     sseService.connect(user.user_id)
   }
+  loadUnreadCount()
+  
+  sseService.onMessage((message) => {
+    if (message.type === 'user_message' || message.type === 'system_message') {
+      userUnreadCount.value++
+    } else if (message.type === 'announcement') {
+      announcementUnreadCount.value++
+    }
+    unreadCount.value = userUnreadCount.value + announcementUnreadCount.value
+  })
+  
+  window.addEventListener('announcement-confirmed', loadUnreadCount)
 })
 
 onUnmounted(() => {
   sseService.disconnect()
+  window.removeEventListener('announcement-confirmed', loadUnreadCount)
 })
 </script>
 
@@ -269,6 +331,35 @@ onUnmounted(() => {
 :deep(.el-menu-item.is-active) {
   background: #409eff !important;
   color: white;
+}
+
+:deep(.el-sub-menu__title) {
+  position: relative;
+}
+
+:deep(.new-dot) {
+  position: absolute;
+  top: 10px;
+  right: 18px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f56c6c;
+}
+
+:deep(.unread-badge) {
+  position: absolute;
+  top: 8px;
+  right: 20px;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #f56c6c;
+  color: white;
+  font-size: 12px;
+  text-align: center;
 }
 
 .header {
