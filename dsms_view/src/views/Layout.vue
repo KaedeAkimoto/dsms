@@ -3,7 +3,7 @@
     <el-container>
       <el-aside :width="isCollapse ? '64px' : '220px'" class="aside">
         <div class="logo">
-          <h1 v-show="!isCollapse">DSMS</h1>
+          <h1 v-show="!isCollapse">缺陷检测管理系统</h1>
           <span v-show="isCollapse">D</span>
         </div>
         <el-menu
