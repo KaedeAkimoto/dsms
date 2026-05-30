@@ -577,9 +577,9 @@ class DatabaseInitializer:
         defect_count = 0
 
         with db_config.get_session() as session:
-            for day_offset in range(7, 0, -1):
-                for hour in range(8, 18):
-                    for minute_slot in range(6):
+            for day_offset in range(3, 0, -1):
+                for hour in range(9, 17):
+                    for minute_slot in range(2):
                         base_time = now - timedelta(days=day_offset, hours=18-hour, minutes=minute_slot*10)
                         batch_id = self._generate_batch_id(base_time)
 
