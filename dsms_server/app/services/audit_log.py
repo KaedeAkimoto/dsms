@@ -1,4 +1,3 @@
-import asyncio
 import queue
 import threading
 from datetime import datetime, timezone
@@ -12,78 +11,55 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-class AsyncAuditLogWriter:
-    """异步审计日志写入器
+class AuditLogWriter:
+    """审计日志写入器
 
     使用独立线程和队列实现异步写入，保证不影响主业务逻辑。
-    支持重试机制和批量写入，使用异步数据库连接。
+    使用同步数据库连接，避免 asyncio 事件循环问题。
     """
 
     def __init__(
         self,
-        max_retries: int = 3,
-        retry_delay: float = 1.0,
         batch_size: int = 10,
         flush_interval: float = 5.0,
         max_queue_size: int = 10000
     ):
-        """
-        Args:
-            max_retries: 最大重试次数
-            retry_delay: 重试延迟（秒）
-            batch_size: 批量写入大小
-            flush_interval: 强制刷新间隔（秒）
-            max_queue_size: 队列最大容量
-        """
         self._queue: queue.Queue = queue.Queue(maxsize=max_queue_size)
-        self._max_retries = max_retries
-        self._retry_delay = retry_delay
         self._batch_size = batch_size
         self._flush_interval = flush_interval
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
-        self._async_loop: Optional[asyncio.AbstractEventLoop] = None
 
     def start(self):
         """启动写入线程"""
         if self._running:
             return
-
         with self._lock:
             if self._running:
                 return
             self._running = True
             self._thread = threading.Thread(target=self._worker, daemon=True)
             self._thread.start()
-            logger.info("AsyncAuditLogWriter started")
+            logger.info("AuditLogWriter started")
 
     def stop(self):
         """停止写入线程"""
         if not self._running:
             return
-
         with self._lock:
             if not self._running:
                 return
             self._running = False
-
         if self._thread:
             self._thread.join(timeout=10)
             self._thread = None
-        if self._async_loop and not self._async_loop.is_closed():
-            self._async_loop.close()
-            self._async_loop = None
-        logger.info("AsyncAuditLogWriter stopped")
+        logger.info("AuditLogWriter stopped")
 
     def _worker(self):
         """写入线程工作函数"""
         batch = []
         last_flush_time = datetime.now()
-
-        loop = asyncio.new_event_loop()
-        self._async_loop = loop
-        asyncio.set_event_loop(loop)
 
         while self._running:
             try:
@@ -102,7 +78,7 @@ class AsyncAuditLogWriter:
                 )
 
                 if should_flush:
-                    loop.run_until_complete(self._async_write_batch(batch))
+                    self._write_batch(batch)
                     batch.clear()
                     last_flush_time = now
 
@@ -110,32 +86,22 @@ class AsyncAuditLogWriter:
                 logger.error(f"Error in audit log worker: {e}")
 
         if batch:
-            loop.run_until_complete(self._async_write_batch(batch))
+            self._write_batch(batch)
 
-        if not loop.is_closed():
-            loop.close()
-
-    async def _async_write_batch(self, batch: List[dict]):
-        """异步批量写入日志"""
+    def _write_batch(self, batch: List[dict]):
+        """批量写入日志"""
         if not batch:
             return
-
-        for attempt in range(self._max_retries):
-            try:
-                async with db_config.async_session_factory() as session:
-                    for log_data in batch:
-                        log = UserOperationLog(**log_data)
-                        session.add(log)
-                    await session.commit()
-                logger.debug(f"Async batch write {len(batch)} audit logs")
-                return
-            except Exception as e:
-                logger.warning(f"Async batch write failed (attempt {attempt + 1}/{self._max_retries}): {e}")
-                if attempt < self._max_retries - 1:
-                    await asyncio.sleep(self._retry_delay * (attempt + 1))
-
-        logger.error(f"Failed to write {len(batch)} audit logs after {self._max_retries} retries, writing to fallback file")
-        self._write_to_fallback_file(batch)
+        try:
+            with db_config.get_session() as session:
+                for log_data in batch:
+                    log = UserOperationLog(**log_data)
+                    session.add(log)
+                session.commit()
+            logger.debug(f"Batch write {len(batch)} audit logs")
+        except Exception as e:
+            logger.error(f"Failed to write {len(batch)} audit logs: {e}")
+            self._write_to_fallback_file(batch)
 
     def _write_to_fallback_file(self, batch: List[dict]):
         """写入失败时写入到备用文件"""
@@ -144,7 +110,6 @@ class AsyncAuditLogWriter:
             fallback_dir = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
             os.makedirs(fallback_dir, exist_ok=True)
             fallback_file = os.path.join(fallback_dir, "audit_log_fallback.txt")
-
             with open(fallback_file, "a", encoding="utf-8") as f:
                 for log_data in batch:
                     f.write(f"{datetime.now().isoformat()}: {log_data}\n")
@@ -226,9 +191,7 @@ class AsyncAuditLogWriter:
         return self._queue.qsize()
 
 
-audit_log_writer = AsyncAuditLogWriter(
-    max_retries=3,
-    retry_delay=1.0,
+audit_log_writer = AuditLogWriter(
     batch_size=10,
     flush_interval=5.0,
     max_queue_size=10000
