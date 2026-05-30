@@ -5,7 +5,9 @@ from pydantic_settings import BaseSettings
 from pathlib import Path
 import tomllib
 import socket
+import asyncio
 from typing import Optional
+from contextlib import asynccontextmanager
 
 # 读取 TOML 配置
 _config_path = Path(__file__).parent.parent.parent / "config.toml"
@@ -317,7 +319,13 @@ class ServerConfig:
             except Exception as e:
                 print(f"Audit log writer stop failed: {e}")
 
-            db_config.close()
+            # 异步关闭数据库连接
+            try:
+                if db_config.async_engine:
+                    await db_config.async_engine.dispose()
+            except (Exception, asyncio.CancelledError):
+                pass
+
             print("Application shutdown complete")
 
         # 将 lifespan 传递给 FastAPI 应用
@@ -341,43 +349,7 @@ class ServerConfig:
         self._add_exception_handlers(app)
         
         return app
-    
-    def startup(self):
-        """应用启动事件（已弃用，使用 lifespan 替代）"""
-        pass
-    
-    def shutdown(self):
-        """应用关闭事件（已弃用，使用 lifespan 替代）"""
-        pass
-        async def startup_event():
-            """启动事件"""
-            print(f"Starting {self.settings.name} v{self.settings.version}")
-            print(f"Debug mode: {self.settings.debug}")
-            print(f"Rate limit: {self.settings.rate_limit_max_requests} requests per {self.settings.rate_limit_window_seconds} seconds")
-            
-            # Initialize database
-            try:
-                await db_config.async_init_db()
-                print("Database initialized successfully")
-            except Exception as e:
-                print(f"Database initialization failed: {e}")
-            
-            # Load role cache
-            try:
-                from app.core.role_cache import role_cache
-                role_cache.load()
-                print(f"Role cache loaded: {role_cache.roles_count} roles, {role_cache.user_roles_count} user-role mappings")
-            except Exception as e:
-                print(f"Role cache loading failed: {e}")
 
-            # Start audit log writer
-            try:
-                from app.services.audit_log import audit_log_writer
-                audit_log_writer.start()
-                print("Audit log writer started")
-            except Exception as e:
-                print(f"Audit log writer start failed: {e}")
-    
     def shutdown(self):
         """应用关闭事件"""
         from app.config.database import db_config

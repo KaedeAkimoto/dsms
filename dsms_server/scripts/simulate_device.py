@@ -47,8 +47,8 @@ logger = logging.getLogger(__name__)
 
 # ==================== 配置项（待配置） ====================
 # 设备ID和Token，运行时通过参数传入或配置文件指定
-DEVICE_ID = "8c7b074d-6520-4d9c-a285-ab414927ad79"  # 设备ID
-UPLOAD_TOKEN = "UmYwfL2Rg9G_cEiRFuY5ameEQs9eE-4qms9ClEIL8o4"  # 上传Token
+DEVICE_ID = "c4f9d557-a72a-4eec-86fd-579f05001abf"  # 设备ID
+UPLOAD_TOKEN = "a1m9tRK92MnxmLF727V3JjDGq6jOU2pScIM1jjXpi78"  # 上传Token
 SERVER_URL = "ws://localhost:8001/api/v1/ws/detection"  # 服务器WebSocket地址
 IMAGE_DIR = Path(__file__).parent / "defect_img"  # 缺陷图片目录（用于模拟有缺陷的产品）
 

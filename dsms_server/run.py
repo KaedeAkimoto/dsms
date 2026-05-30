@@ -2,6 +2,9 @@ import uvicorn
 import sys
 import os
 
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+
 # Add the current directory to the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
