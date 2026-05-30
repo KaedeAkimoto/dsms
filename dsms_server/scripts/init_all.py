@@ -38,6 +38,7 @@ from app.models import (
     UserOperationLog, UserMessage, SystemMessage, Announcement, AnnouncementReader
 )
 from app.core.system_roles import get_all_system_roles, get_default_permissions, SystemRole
+from app.core.role_cache import role_cache
 from sqlmodel import SQLModel, select
 from sqlalchemy import text
 
@@ -647,6 +648,10 @@ class DatabaseInitializer:
         self.seed_messages()
         self.seed_announcements()
 
+        logger.info("=" * 60)
+        logger.info("加载角色缓存...")
+        role_cache.load()
+        logger.info(f"角色缓存已加载: {role_cache.roles_count} 个角色, {role_cache.user_roles_count} 个用户-角色映射")
         logger.info("=" * 60)
         logger.info("所有数据填充完成!")
         logger.info("=" * 60)

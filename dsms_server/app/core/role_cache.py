@@ -32,11 +32,14 @@ class RoleCache:
         self._roles: Dict[str, Dict] = {}
         self._user_roles: Dict[str, str] = {}
         self._initialized = True
+        self._loaded = False
         logger.info("RoleCache instance created")
-        self.load()
     
     def load(self) -> None:
-        """从数据库加载所有角色数据"""
+        """从数据库加载所有角色数据
+        
+        如果数据库为空或表不存在，不会抛出异常，而是保持空缓存状态。
+        """
         try:
             with db_config.get_session() as session:
                 # 加载所有角色
@@ -61,11 +64,14 @@ class RoleCache:
                     if user.role_id:
                         self._user_roles[str(user.user_id)] = str(user.role_id)
                 
+                self._loaded = True
                 logger.info(f"RoleCache loaded: {len(self._roles)} roles, {len(self._user_roles)} user-role mappings")
                 
         except Exception as e:
-            logger.error(f"Failed to load RoleCache: {e}")
-            raise
+            logger.warning(f"Failed to load RoleCache (database may be empty or not initialized): {e}")
+            self._roles.clear()
+            self._user_roles.clear()
+            self._loaded = False
     
     def get_role_permissions(self, role_id: str) -> List[Dict[str, str]]:
         """获取角色的权限列表"""
@@ -110,6 +116,11 @@ class RoleCache:
     def user_roles_count(self) -> int:
         """获取缓存的用户-角色映射数量"""
         return len(self._user_roles)
+    
+    @property
+    def is_loaded(self) -> bool:
+        """检查缓存是否已加载"""
+        return self._loaded
 
 
 # 全局单例
