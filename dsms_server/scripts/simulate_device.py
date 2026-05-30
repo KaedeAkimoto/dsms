@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 DEVICE_ID = "8c7b074d-6520-4d9c-a285-ab414927ad79"  # 设备ID
 UPLOAD_TOKEN = "UmYwfL2Rg9G_cEiRFuY5ameEQs9eE-4qms9ClEIL8o4"  # 上传Token
 SERVER_URL = "ws://localhost:8001/api/v1/ws/detection"  # 服务器WebSocket地址
-IMAGE_DIR = Path(__file__).parent.parent / "debug" / "images"  # 图片目录
+IMAGE_DIR = Path(__file__).parent / "defect_img"  # 缺陷图片目录（用于模拟有缺陷的产品）
 
 # 检测间隔（秒）- 每秒3张
 DETECTION_INTERVAL = 1/3

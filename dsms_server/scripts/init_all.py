@@ -110,9 +110,99 @@ class DatabaseInitializer:
     def __init__(self):
         db_config.init_db()
         self.debug_images_path = Path(__file__).parent.parent / "debug" / "images"
+        self.defect_img_path = Path(__file__).parent / "defect_img"
         self._user_cache = {}
         self._device_cache = {}
         self._line_cache = {}
+        self._defect_images = None
+        self._defect_data_cache = None
+
+    def _get_defect_images(self) -> list:
+        """动态获取缺陷图片目录下的所有图片文件"""
+        if self._defect_images is None:
+            self._defect_images = []
+            if self.debug_images_path.exists():
+                for file in self.debug_images_path.iterdir():
+                    if file.is_file() and file.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp']:
+                        self._defect_images.append(file.name)
+                self._defect_images.sort()
+            logger.info(f"加载了 {len(self._defect_images)} 张缺陷图片")
+        return self._defect_images
+
+    def _load_defect_img_data(self) -> list:
+        """加载 defect_img 目录下的所有图片和 YOLO 标签数据
+        
+        Returns:
+            list: [{'image': bytes, 'format': str, 'details': [{'defect_type_id': int, 'xyhw': tuple, 'conf': float}, ...]}, ...]
+            xyhw 格式: (x, y, width, height) 像素坐标，与实际运行时 YOLO 检测器一致
+        """
+        if self._defect_data_cache is not None:
+            return self._defect_data_cache
+        
+        self._defect_data_cache = []
+        if not self.defect_img_path.exists():
+            logger.warning(f"defect_img 目录不存在: {self.defect_img_path}")
+            return self._defect_data_cache
+        
+        yolo_class_to_defect_type = {
+            0: 1,  # rust -> 锈蚀
+            1: 2,  # burr -> 毛刺
+            2: 3,  # crack -> 裂纹
+            3: 4,  # scratch -> 划痕
+            4: 5,  # dent -> 凹痕
+            5: 6,  # wear -> 磨损
+        }
+        
+        img_width, img_height = 640, 640
+        
+        for img_file in self.defect_img_path.iterdir():
+            if not img_file.is_file() or img_file.suffix.lower() not in ['.jpg', '.jpeg', '.png']:
+                continue
+            
+            label_file = img_file.with_suffix('.txt')
+            if not label_file.exists():
+                continue
+            
+            try:
+                with open(img_file, 'rb') as f:
+                    image_data = f.read()
+                
+                format_str = 'jpeg' if img_file.suffix.lower() in ['.jpg', '.jpeg'] else 'png'
+                
+                details = []
+                with open(label_file, 'r') as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) >= 5:
+                            class_id = int(parts[0])
+                            cx = float(parts[1])
+                            cy = float(parts[2])
+                            w = float(parts[3])
+                            h = float(parts[4])
+                            
+                            defect_type_id = yolo_class_to_defect_type.get(class_id, class_id + 1)
+                            
+                            x = round(cx * img_width, 2)
+                            y = round(cy * img_height, 2)
+                            width = round(w * img_width, 2)
+                            height = round(h * img_height, 2)
+                            
+                            details.append({
+                                'defect_type_id': defect_type_id,
+                                'xyhw': (x, y, width, height),
+                                'conf': round(0.5 + random.uniform(0, 0.49), 3)
+                            })
+                
+                self._defect_data_cache.append({
+                    'image': image_data,
+                    'format': format_str,
+                    'details': details
+                })
+            except Exception as e:
+                logger.warning(f"加载缺陷图片 {img_file.name} 失败: {e}")
+        
+        logger.info(f"加载了 {len(self._defect_data_cache)} 个真实缺陷样本")
+        return self._defect_data_cache
 
     def _hash_password(self, password: str) -> str:
         return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -465,15 +555,17 @@ class DatabaseInitializer:
         logger.info("开始填充检测记录和缺陷详情...")
         logger.info("=" * 50)
 
-        defect_images = [
-            "sample_000_original.jpg", "sample_001_original.jpg", "sample_002_original.jpg",
-            "sample_003_original.jpg", "sample_004_original.jpg", "sample_005_original.jpg",
-            "sample_006_original.jpg", "sample_007_original.jpg", "sample_008_original.jpg",
-            "sample_009_original.jpg", "sample_010_original.jpg", "sample_011_original.jpg",
-            "sample_012_original.jpg", "sample_013_original.jpg", "sample_014_original.jpg",
-            "sample_015_original.jpg", "sample_016_original.jpg", "sample_017_original.jpg",
-            "sample_018_original.jpg", "sample_019_original.jpg",
-        ]
+        defect_img_data = self._load_defect_img_data()
+        if not defect_img_data:
+            logger.warning("未找到真实缺陷样本，使用随机数据填充...")
+            defect_images = self._get_defect_images()
+            if not defect_images:
+                logger.warning("未找到缺陷图片，跳过缺陷详情填充")
+                return
+            use_real_data = False
+        else:
+            use_real_data = True
+            logger.info(f"使用 {len(defect_img_data)} 个真实缺陷样本")
 
         device_names = list(self._device_cache.keys())
         now = datetime.now(timezone.utc)
@@ -496,12 +588,19 @@ class DatabaseInitializer:
                         has_defect = random.random() > 0.6
                         detect_info = []
                         if has_defect:
-                            defect_type_id = random.randint(1, 6)
-                            defect_type_count = random.randint(1, 5)
-                            detect_info.append({
-                                "defect_type_id": defect_type_id,
-                                "defect_count": defect_type_count
-                            })
+                            if use_real_data:
+                                sample = random.choice(defect_img_data)
+                                detect_info = [{
+                                    "defect_type_id": sample['details'][0]['defect_type_id'] if sample['details'] else random.randint(1, 6),
+                                    "defect_count": len(sample['details'])
+                                }]
+                            else:
+                                defect_type_id = random.randint(1, 6)
+                                defect_type_count = random.randint(1, 5)
+                                detect_info.append({
+                                    "defect_type_id": defect_type_id,
+                                    "defect_count": defect_type_count
+                                })
 
                         record = DetectionRecord(
                             record_batch_id=batch_id,
@@ -516,26 +615,47 @@ class DatabaseInitializer:
                         batch_count += 1
 
                         if has_defect and detect_info:
-                            img_filename = random.choice(defect_images)
-                            img_data = self._load_image_base64(img_filename)
+                            if use_real_data:
+                                sample = random.choice(defect_img_data)
+                                defect_details_list = []
+                                for detail in sample['details']:
+                                    defect_details_list.append({
+                                        "defect_type_id": detail['defect_type_id'],
+                                        "xyhw": detail['xywh'],
+                                        "conf": detail['conf']
+                                    })
+                                
+                                defect_record = DefectDetail(
+                                    defect_details_id=uuid4(),
+                                    record_batch_id=batch_id,
+                                    image=sample['image'],
+                                    image_format=sample['format'],
+                                    defect_count=len(sample['details']),
+                                    details=defect_details_list
+                                )
+                                session.add(defect_record)
+                                defect_count += 1
+                            else:
+                                img_filename = random.choice(defect_images)
+                                img_data = self._load_image_base64(img_filename)
 
-                            if img_data:
-                                for _ in range(random.randint(1, 3)):
-                                    defect_record = DefectDetail(
-                                        defect_details_id=uuid4(),
-                                        record_batch_id=batch_id,
-                                        image=img_data,
-                                        image_format="jpeg",
-                                        defect_count=random.randint(1, 5),
-                                        details=[{
-                                            "defect_type_id": detect_info[0]["defect_type_id"],
-                                            "xyhw": (random.randint(100, 500), random.randint(100, 500),
-                                                    random.randint(50, 200), random.randint(50, 200)),
-                                            "conf": round(random.uniform(0.5, 0.99), 3)
-                                        }]
-                                    )
-                                    session.add(defect_record)
-                                    defect_count += 1
+                                if img_data:
+                                    for _ in range(random.randint(1, 3)):
+                                        defect_record = DefectDetail(
+                                            defect_details_id=uuid4(),
+                                            record_batch_id=batch_id,
+                                            image=img_data,
+                                            image_format="jpeg",
+                                            defect_count=random.randint(1, 5),
+                                            details=[{
+                                                "defect_type_id": detect_info[0]["defect_type_id"],
+                                                "xyhw": (random.randint(100, 500), random.randint(100, 500),
+                                                        random.randint(50, 200), random.randint(50, 200)),
+                                                "conf": round(random.uniform(0.5, 0.99), 3)
+                                            }]
+                                        )
+                                        session.add(defect_record)
+                                        defect_count += 1
                         session.commit()
 
         logger.info(f"  创建了 {batch_count} 条检测记录")
